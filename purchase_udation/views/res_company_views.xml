@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_company_form_inherit" model="ir.ui.view">
+        <field name="name">res.company.form.inherit</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='general_info']" position="after">
+                <page string="Footer Settings" name="footer_settings">
+                    <group>
+                        <group string="Column 1 - Registration Details">
+                            <field name="footer_cin" placeholder="e.g., U27100GJ2008PLCO54437"/>
+                            <field name="footer_iso" placeholder="e.g., ISO 45001:2018"/>
+                            <field name="footer_bis" placeholder="e.g., BIS 2830:2012"/>
+                        </group>
+                        <group string="Column 2 - Contact Details">
+                            <field name="footer_phone" placeholder="e.g., +91 9543345643"/>
+                            <field name="footer_address" placeholder="Company Address"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Column 3 - Email">
+                            <field name="footer_email" placeholder="e.g., info@company.com"/>
+                        </group>
+                        <group string="Column 4 - Website">
+                            <field name="footer_website" placeholder="e.g., www.company.com"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

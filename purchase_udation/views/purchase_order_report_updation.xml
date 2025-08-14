@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+   <!-- Inheriting from 'purchase.report_purchaseorder_document'. -->
+
+    <template id="purchase_report" inherit_id="purchase.report_purchaseorder_document">
+        <!-- Set company context for footer -->
+        <xpath expr="//t[@t-call='web.external_layout']" position="before">
+            <t t-set="company" t-value="o.company_id"/>
+        </xpath>
+        
+        <xpath expr="//p[@t-field='o.notes']" position="replace"/>
+        <xpath expr="//div[@class='oe_structure'][2]" position="replace"/>
+
+        <xpath expr="//strong[text()='Payment Terms: ']" position="replace"/>
+        <xpath expr="//span[@t-field='o.payment_term_id']" position="replace">
+            <t t-if="o.notes">
+                <strong><u>Terms and conditions</u>: </strong>
+                <span t-field="o.notes" class="mt-4"/>
+                <!--<p t-field="o.notes" class="mt-4"/>-->
+                <div class="oe_structure"/>
+            </t>
+            
+            <t t-if="o.payment_term_id">
+                <strong>Payment Terms: </strong>
+                <span t-field="o.payment_term_id" class="mt-4"/>
+            </t>
+        </xpath>
+
+    </template>
+
+    <template id="web_external_layout_folder" inherit_id="web.external_layout_folder">
+        <xpath expr="//div[contains(@class, 'o_footer_content')]" position="replace">
+            <div style="border-top: 2px solid #4a5568; padding: 15px 20px; margin-top: 20px; font-size: 12px; color: #2d3748; background: white; min-height: 80px; page-break-inside: avoid;">
+                <!-- 4-Column Footer Layout using Divs (No Borders) -->
+                <div style="display: table; width: 100%; margin-bottom: 12px;">
+                    <div style="display: table-row;">
+                        <!-- Column 1: Registration Details -->
+                        <div style="display: table-cell; width: 25%; vertical-align: top; padding-right: 15px;">
+                            <t t-if="company and company.footer_cin">
+                                <div style="margin-bottom: 3px; line-height: 1.3;">
+                                    <span style="font-weight: 600; font-size: 12px;">CIN: </span>
+                                    <span t-esc="company.footer_cin" style="font-size: 12px;"/>
+                                </div>
+                            </t>
+                            <t t-if="company and company.footer_iso">
+                                <div style="margin-bottom: 3px; line-height: 1.3;">
+                                    <span style="font-weight: 600; font-size: 12px;">ISO: </span>
+                                    <span t-esc="company.footer_iso" style="font-size: 12px;"/>
+                                </div>
+                            </t>
+                            <t t-if="company and company.footer_bis">
+                                <div style="margin-bottom: 3px; line-height: 1.3;">
+                                    <span style="font-weight: 600; font-size: 12px;">BIS: </span>
+                                    <span t-esc="company.footer_bis" style="font-size: 12px;"/>
+                                </div>
+                            </t>
+                            <!-- Certification Images -->
+                            <div style="margin-top: 5px; display: flex; gap: 7px; align-items: center;">
+                                <!-- ISO Image 1 -->
+                                <img src="/purchase_udation/static/src/img/iso.jpg" alt="ISO" style="height: 20px; width: auto; object-fit: contain;"/>
+                                
+                                <!-- ISO Image 2 -->
+                                <img src="/purchase_udation/static/src/img/iso2.jpg" alt="ISO2" style="height: 20px; width: auto; object-fit: contain;"/>
+                                
+                                <!-- Future Images (commented out) -->
+                                <!-- Image 3 -->
+                                <!-- <img src="/purchase_udation/static/src/img/certification3.jpg" alt="Cert3" style="height: 10px; width: auto; object-fit: contain;"/> -->
+                                
+                                <!-- Image 4 -->
+                                <!-- <img src="/purchase_udation/static/src/img/certification4.jpg" alt="Cert4" style="height: 10px; width: auto; object-fit: contain;"/> -->
+                                
+                                <!-- Image 5 -->
+                                <!-- <img src="/purchase_udation/static/src/img/certification5.jpg" alt="Cert5" style="height: 10px; width: auto; object-fit: contain;"/> -->
+                            </div>
+                        </div>
+
+                        <!-- Column 2: Address & Phone -->
+                        <div t-att-style="'display: table-cell; width: 52%; vertical-align: top; padding: 0 15px;' if (company and company.footer_address and len(company.footer_address) > 50) else 'display: table-cell; width: 30%; vertical-align: top; padding: 0 15px;'">
+                            <div style="font-weight: 700; color: #2b6cb0; margin-bottom: 6px; font-size: 13px; letter-spacing: 0.5px;">
+                                <i class="fa fa-phone" style="margin-right: 5px; color: #3182ce; font-size: 12px;"></i>CONTACT
+                            </div>
+                            <t t-if="company and company.footer_phone">
+                                <div style="margin-bottom: 6px; line-height: 1.3;">
+                                    <i class="fa fa-mobile" style="margin-right: 6px; color: #e53e3e; font-size: 11px;"></i>
+                                    <span t-esc="company.footer_phone" style="font-weight: 600; font-size: 12px;"/>
+                                </div>
+                            </t>
+                            <t t-if="company and company.footer_address">
+                                <div style="line-height: 1.2;">
+                                    <i class="fa fa-map-marker" style="margin-right: 6px; color: #e53e3e; font-size: 10px; vertical-align: top;"></i>
+                                    <span t-esc="company.footer_address" style="font-size: 11px; word-wrap: break-word;"/>
+                                </div>
+                            </t>
+                        </div>
+
+                        <!-- Column 3: Email (only if address is small) -->
+                        <t t-if="not (company and company.footer_address and len(company.footer_address) > 50)">
+                            <div style="display: table-cell; width: 22%; vertical-align: top; padding: 0 15px;">
+                                <div style="font-weight: 700; color: #2b6cb0; margin-bottom: 6px; font-size: 13px; letter-spacing: 0.5px;">
+                                    <i class="fa fa-envelope" style="margin-right: 5px; color: #3182ce; font-size: 12px;"></i>EMAIL
+                                </div>
+                                <t t-if="company and company.footer_email">
+                                    <div style="line-height: 1.3;">
+                                        <i class="fa fa-at" style="margin-right: 6px; color: #805ad5; font-size: 10px;"></i>
+                                        <span t-esc="company.footer_email" style="color: #2b6cb0; font-weight: 600; font-size: 12px; word-break: break-all;"/>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+
+                        <!-- Column 4: Website & Email (if address is large) -->
+                        <div t-att-style="'display: table-cell; width: 23%; vertical-align: top; padding-left: 15px;' if not (company and company.footer_address and len(company.footer_address) > 50) else 'display: table-cell; width: 48%; vertical-align: top; padding-left: 15px;'">
+                            <div style="font-weight: 700; color: #2b6cb0; margin-bottom: 6px; font-size: 13px; letter-spacing: 0.5px;">
+                                <i class="fa fa-globe" style="margin-right: 5px; color: #3182ce; font-size: 12px;"></i>WEBSITE
+                            </div>
+                            <!-- Email section when address is large -->
+                            <t t-if="company and company.footer_address and len(company.footer_address) > 50">
+                                <div style="font-weight: 700; color: #2b6cb0; margin-bottom: 6px; font-size: 13px; letter-spacing: 0.5px;">
+                                    <i class="fa fa-envelope" style="margin-right: 5px; color: #3182ce; font-size: 12px;"></i>EMAIL
+                                </div>
+                                <t t-if="company and company.footer_email">
+                                    <div style="line-height: 1.3; margin-bottom: 6px;">
+                                        <i class="fa fa-at" style="margin-right: 6px; color: #805ad5; font-size: 10px;"></i>
+                                        <span t-esc="company.footer_email" style="color: #2b6cb0; font-weight: 600; font-size: 12px; word-break: break-all;"/>
+                                    </div>
+                                </t>
+                            </t>
+                            <t t-if="company and company.footer_website">
+                                <div style="line-height: 1.3;">
+                                    <i class="fa fa-external-link" style="margin-right: 6px; color: #805ad5; font-size: 10px;"></i>
+                                    <span t-esc="company.footer_website" style="color: #2b6cb0; font-weight: 600; font-size: 12px; word-break: break-all;"/>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Page Number Section -->
+                <div style="border-top: 1px solid #e2e8f0; padding-top: 8px; text-align: center; margin-top: 8px;">
+                    <div style="font-size: 11px; color: #718096; font-weight: 600; letter-spacing: 0.5px;">
+                        <i class="fa fa-file-text-o" style="margin-right: 4px; font-size: 10px;"></i>
+                        PAGE <span class="page" style="font-weight: 700;"/> OF <span class="topage" style="font-weight: 700;"/>
+                    </div>
+                </div>
+            </div>
+        </xpath>
+    </template>
+
+</odoo>

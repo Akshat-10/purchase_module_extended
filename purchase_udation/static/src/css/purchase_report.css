@@ -1,0 +1,58 @@
+/* Purchase Report Footer Styles - No Borders */
+.footer-table, 
+.footer-table tr, 
+.footer-table td,
+.footer-table th,
+.footer-table tbody,
+.footer-table thead,
+.footer-table tfoot {
+    border: none !important;
+    border: 0 !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Additional border removal for PDF generation */
+.footer-table {
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    -webkit-border-horizontal-spacing: 0 !important;
+    -webkit-border-vertical-spacing: 0 !important;
+}
+
+/* Ensure no default table styling interferes */
+.footer-table td {
+    border-top: none !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border: 0 solid transparent !important;
+}
+
+/* Override any inherited styles */
+table.footer-table,
+table.footer-table > tbody > tr > td {
+    border: 0 !important;
+    border-style: none !important;
+}
+
+/* Remove borders from all child elements */
+.footer-table * {
+    border: 0 !important;
+    border-style: none !important;
+    border-width: 0px !important;
+}
+
+/* PDF specific overrides */
+@media print {
+    .footer-table,
+    .footer-table td,
+    .footer-table tr {
+        border: none !important;
+        border-width: 0 !important;
+        border-style: none !important;
+    }
+}
