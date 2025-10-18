@@ -20,8 +20,8 @@
             "purchase_udation/static/src/css/purchase_report.css",
         ],
     },
-    "application": True,
-    "installable": True,
+    "application": False,
+    "installable": False,
     
     
 }

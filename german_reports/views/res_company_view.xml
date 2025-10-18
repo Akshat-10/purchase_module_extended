@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data>
+    <record id="view_company_form_inherit_gr_images" model="ir.ui.view">
+      <field name="name">res.company.form.inherit.gr.images</field>
+      <field name="model">res.company</field>
+      <field name="inherit_id" ref="base.view_company_form"/>
+      <field name="arch" type="xml">
+        <xpath expr="//page[@name='general_info']/group[last()]" position="after">
+          <group string="Report Branding">
+            <group>
+              <field name="report_header_image" widget="image" class="oe_avatar"/>
+              <label for="report_header_image" string="Header Image"/>
+              <p class="text-muted">Shown at top of reports. PNG/JPG recommended. Width 100%.</p>
+            </group>
+            <group>
+              <field name="report_footer_image" widget="image" class="oe_avatar"/>
+              <label for="report_footer_image" string="Footer Image"/>
+              <p class="text-muted">Shown at bottom of reports. PNG/JPG recommended. Width 100%.</p>
+            </group>
+          </group>
+        </xpath>
+      </field>
+    </record>
+  </data>
+  
+</odoo>

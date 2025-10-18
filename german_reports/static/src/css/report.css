@@ -1,0 +1,57 @@
+/* Full-bleed header/footer image styling to remove container side paddings */
+:root { --gr-gutter-x: var(--bs-gutter-x, 1.5rem); }
+
+/* 1) Generic: force full viewport width (works for PDF engines too) */
+.o_gr_fullbleed_header,
+.o_gr_fullbleed_footer {
+	width: 100vw !important;
+	margin-left: calc(50% - 50vw) !important;
+	margin-right: calc(50% - 50vw) !important;
+	padding: 0 !important;
+	border: 0 !important;
+}
+
+/* 2) HTML preview runs inside a Bootstrap .container with side paddings.
+   Compensate for that to eliminate left/right white gutters. */
+.o_body_html.container .o_gr_fullbleed_header,
+.o_body_html.container .o_gr_fullbleed_footer,
+.o_body_html.container-fluid .o_gr_fullbleed_header,
+.o_body_html.container-fluid .o_gr_fullbleed_footer {
+	width: calc(100% + (var(--gr-gutter-x) * 2)) !important;
+	margin-left: calc(var(--gr-gutter-x) * -1) !important;
+	margin-right: calc(var(--gr-gutter-x) * -1) !important;
+}
+
+.o_gr_fullbleed_header img,
+.o_gr_fullbleed_footer img {
+	display: block !important;
+	width: 100% !important;
+	height: auto !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+}
+
+/* 3) PDF layout often uses a different body class; keep full-bleed there too */
+.o_body_pdf .o_gr_fullbleed_header,
+.o_body_pdf .o_gr_fullbleed_footer {
+	width: 100vw !important;
+	margin-left: calc(50% - 50vw) !important;
+	margin-right: calc(50% - 50vw) !important;
+}
+
+/* 4) Precisely counter Odoo's CSS margins (default 11mm on both sides).
+      This avoids clipping due to overflow hidden and ensures exact edge alignment.
+      If your paperformat uses another css margin, adjust the 11mm/22mm values below. */
+.o_body_html .o_gr_fullbleed_header,
+.o_body_html .o_gr_fullbleed_footer,
+.o_body_pdf.o_css_margins .o_gr_fullbleed_header,
+.o_body_pdf.o_css_margins .o_gr_fullbleed_footer {
+	width: calc(100% + 22mm) !important;
+	margin-left: -11mm !important;
+	margin-right: -11mm !important;
+}
+
+.o_snail_mail .address {
+    padding-top: 1px;
+}

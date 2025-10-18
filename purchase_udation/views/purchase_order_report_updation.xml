@@ -4,27 +4,9 @@
 
     <template id="purchase_report" inherit_id="purchase.report_purchaseorder_document">
         <!-- Set company context for footer -->
-        <xpath expr="//t[@t-call='web.external_layout']" position="before">
+        <!-- <xpath expr="//t[@t-call='web.external_layout']" position="before">
             <t t-set="company" t-value="o.company_id"/>
-        </xpath>
-        
-        <xpath expr="//p[@t-field='o.notes']" position="replace"/>
-        <xpath expr="//div[@class='oe_structure'][2]" position="replace"/>
-
-        <xpath expr="//strong[text()='Payment Terms: ']" position="replace"/>
-        <xpath expr="//span[@t-field='o.payment_term_id']" position="replace">
-            <t t-if="o.notes">
-                <strong><u>Terms and conditions</u>: </strong>
-                <span t-field="o.notes" class="mt-4"/>
-                <!--<p t-field="o.notes" class="mt-4"/>-->
-                <div class="oe_structure"/>
-            </t>
-            
-            <t t-if="o.payment_term_id">
-                <strong>Payment Terms: </strong>
-                <span t-field="o.payment_term_id" class="mt-4"/>
-            </t>
-        </xpath>
+        </xpath> -->
 
     </template>
 
