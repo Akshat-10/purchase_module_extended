@@ -9,6 +9,10 @@
         </t>
       </div>
     </xpath>
+    <!-- Fix background image positioning -->
+    <xpath expr="//div[contains(@t-attf-class,'article')]" position="attributes">
+      <attribute name="style" add="background-position: center !important; background-repeat: no-repeat !important; background-size: cover !important;" separator=";"/>
+    </xpath>
   </template>
 
   <template id="external_layout_bold_inherit_gr_header" inherit_id="web.external_layout_bold">
@@ -18,6 +22,10 @@
           <img t-att-src="image_data_uri(company.report_header_image)" style="width:100%;" alt="Header"/>
         </t>
       </div>
+    </xpath>
+    <!-- Fix background image positioning -->
+    <xpath expr="//div[contains(@t-attf-class,'article')]" position="attributes">
+      <attribute name="style" add="background-position: center !important; background-repeat: no-repeat !important; background-size: cover !important;" separator=";"/>
     </xpath>
   </template>
 
@@ -29,6 +37,10 @@
         </t>
       </div>
     </xpath>
+    <!-- Fix background image positioning -->
+    <xpath expr="//div[contains(@t-attf-class,'article')]" position="attributes">
+      <attribute name="style" add="background-position: center !important; background-repeat: no-repeat !important; background-size: cover !important;" separator=";"/>
+    </xpath>
   </template>
 
   <template id="external_layout_striped_inherit_gr_header" inherit_id="web.external_layout_striped">
@@ -38,6 +50,10 @@
           <img t-att-src="image_data_uri(company.report_header_image)" style="width:100%;" alt="Header"/>
         </t>
       </div>
+    </xpath>
+    <!-- Fix background image positioning -->
+    <xpath expr="//div[contains(@t-attf-class,'article')]" position="attributes">
+      <attribute name="style" add="background-position: center !important; background-repeat: no-repeat !important; background-size: cover !important;" separator=";"/>
     </xpath>
   </template>
 
@@ -90,6 +106,10 @@
         </t>
       </div>
     </xpath>
+    <!-- Fix background image positioning -->
+    <xpath expr="//div[contains(@t-attf-class,'article')]" position="attributes">
+      <attribute name="style" add="background-position: center !important; background-repeat: no-repeat !important; background-size: cover !important;" separator=";"/>
+    </xpath>
   </template>
   <template id="external_layout_folder_inherit_gr_footer" inherit_id="web.external_layout_folder">
     <xpath expr="//div[contains(@t-attf-class,'footer')][contains(@t-attf-class,'o_company_')]" position="replace">
@@ -110,6 +130,10 @@
         </t>
       </div>
     </xpath>
+    <!-- Fix background image positioning -->
+    <xpath expr="//div[contains(@t-attf-class,'article')]" position="attributes">
+      <attribute name="style" add="background-position: center !important; background-repeat: no-repeat !important; background-size: cover !important;" separator=";"/>
+    </xpath>
   </template>
   <template id="external_layout_wave_inherit_gr_footer" inherit_id="web.external_layout_wave">
     <xpath expr="//div[contains(@t-attf-class,'footer')][contains(@t-attf-class,'o_company_')]" position="replace">
@@ -129,6 +153,10 @@
           <img t-att-src="image_data_uri(company.report_header_image)" style="width:100%;" alt="Header"/>
         </t>
       </div>
+    </xpath>
+    <!-- Fix background image positioning -->
+    <xpath expr="//div[contains(@t-attf-class,'article')]" position="attributes">
+      <attribute name="style" add="background-position: center !important; background-repeat: no-repeat !important; background-size: cover !important;" separator=";"/>
     </xpath>
   </template>
   <template id="external_layout_bubble_inherit_gr_footer" inherit_id="web.external_layout_bubble">
