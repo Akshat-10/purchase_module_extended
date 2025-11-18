@@ -8,6 +8,16 @@
             <t t-set="company" t-value="o.company_id"/>
         </xpath>
 
+        <!-- Update document title based on order_type -->
+        <xpath expr="//div[@class='mt-4']" position="replace">
+            <div class="mt-4" style="margin-top: 8px !important; margin-bottom: 8px; font-size: 1.125em;">
+                <t t-set="order_type_label" t-value="'Purchase Order' if o.order_type == 'purchase_order' else 'Work Order' if o.order_type == 'work_order' else 'Service Order' if o.order_type == 'service_order' else 'AMC' if o.order_type == 'amc' else 'Purchase Order'"/>
+                <strong t-if="o.state in ['draft', 'sent', 'to approve']"><t t-esc="order_type_label"/> # </strong>
+                <strong t-if="o.state in ['purchase', 'done', 'cancel']"><t t-esc="order_type_label"/> # </strong>
+                <span t-field="o.name"/>
+            </div>
+        </xpath>
+
         <!-- Add Supplier Label to address -->
         <xpath expr="//div[@t-field='o.partner_id']" position="before">
             <strong style="font-size: 0.9em;">Supplier:</strong>
@@ -22,11 +32,6 @@
         </xpath>
         <xpath expr="//div[@t-field='o.dest_address_id']" position="attributes">
             <attribute name="style">font-size: 0.85em; line-height: 1.3;</attribute>
-        </xpath>
-
-        <!-- Reduce title size and spacing -->
-        <xpath expr="//div[@class='mt-4']" position="attributes">
-            <attribute name="style">margin-top: 8px !important; margin-bottom: 8px; font-size: 0.95em;</attribute>
         </xpath>
 
         <!-- Hide information block and add only Order date -->

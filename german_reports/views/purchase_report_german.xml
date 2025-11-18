@@ -6,6 +6,14 @@
             <t t-set="company" t-value="o.company_id"/>
         </xpath>
 
+        <!-- Update document title based on order_type -->
+        <xpath expr="//t[@t-set='layout_document_title']" position="replace">
+            <t t-set="layout_document_title" style="font-size: 1.125em; margin-bottom: 8px;">
+                <t t-set="order_type_label" t-value="'Request for Quotation' if o.order_type == 'purchase_order' else 'Work Order Quotation' if o.order_type == 'work_order' else 'Service Order Quotation' if o.order_type == 'service_order' else 'AMC Quotation' if o.order_type == 'amc' else 'Request for Quotation'"/>
+                <span t-esc="order_type_label"/>
+            </t>
+        </xpath>
+
         <!-- Add Supplier Label to address -->
         <xpath expr="//div[@t-field='o.partner_id']" position="before">
             <strong style="font-size: 0.9em;">Supplier:</strong>
@@ -20,11 +28,6 @@
         </xpath>
         <xpath expr="//div[@t-field='o.dest_address_id']" position="attributes">
             <attribute name="style">font-size: 0.85em; line-height: 1.3;</attribute>
-        </xpath>
-
-        <!-- Reduce title size and spacing -->
-        <xpath expr="//t[@t-set='layout_document_title']" position="attributes">
-            <attribute name="style">font-size: 0.95em; margin-bottom: 8px;</attribute>
         </xpath>
 
         <!-- Add Order Date information after title -->

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Add order_type field to Purchase Order form view -->
+    <record id="purchase_order_form_view_inherit_order_type" model="ir.ui.view">
+        <field name="name">purchase.order.form.inherit.order.type</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form"/>
+        <field name="arch" type="xml">
+            <!-- Add order_type field above partner_ref -->
+            <xpath expr="//field[@name='partner_ref']" position="before">
+                <field name="order_type" string="Order Type"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -11,6 +11,7 @@
     'data': [
         'views/report_layout_inherit.xml',
         'views/res_company_view.xml',
+        'views/purchase_order_view.xml',
         'views/purchase_order_report_updation.xml',
         'views/purchase_report_german.xml',
     ],
