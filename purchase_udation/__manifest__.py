@@ -12,16 +12,17 @@
     "depends": ['base', 'purchase', 'web'],
     "data": [
         # 'security/ir.model.access.csv',
-        'views/res_company_views.xml',
-        'views/purchase_order_report_updation.xml',
+        # 'views/res_company_views.xml',
+        # 'views/purchase_order_report_updation.xml',
     ],
-    "assets": {
-        "web.assets_frontend": [
-            "purchase_udation/static/src/css/purchase_report.css",
-        ],
-    },
+    # "assets": {
+    #     "web.assets_frontend": [
+    #         "purchase_udation/static/src/css/purchase_report.css",
+    #     ],
+    # },
     "application": False,
     "installable": False,
+    "active": False,
     
     
 }

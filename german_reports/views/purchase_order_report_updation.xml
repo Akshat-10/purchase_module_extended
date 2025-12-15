@@ -2,10 +2,73 @@
 <odoo>
    <!-- Inheriting from 'purchase.report_purchaseorder_document'. -->
 
-    <template id="purchase_report" inherit_id="purchase.report_purchaseorder_document">
+    <template id="purchase_report" inherit_id="purchase.report_purchaseorder_document" priority="20">
         <!-- Set company context for footer -->
         <xpath expr="//t[@t-call='web.external_layout']" position="before">
             <t t-set="company" t-value="o.company_id"/>
+        </xpath>
+
+        <!-- Update document title based on order_type -->
+        <xpath expr="//div[@class='mt-4']" position="replace">
+            <div class="mt-4" style="margin-top: 8px !important; margin-bottom: 8px; font-size: 1.125em;">
+                <t t-set="order_type_label" t-value="'Purchase Order' if o.order_type == 'purchase_order' else 'Work Order' if o.order_type == 'work_order' else 'Service Order' if o.order_type == 'service_order' else 'AMC' if o.order_type == 'amc' else 'Purchase Order'"/>
+                <strong t-if="o.state in ['draft', 'sent', 'to approve']"><t t-esc="order_type_label"/> # </strong>
+                <strong t-if="o.state in ['purchase', 'done', 'cancel']"><t t-esc="order_type_label"/> # </strong>
+                <span t-field="o.name"/>
+            </div>
+        </xpath>
+
+        <!-- Add Supplier Label to address -->
+        <xpath expr="//div[@t-field='o.partner_id']" position="before">
+            <strong style="font-size: 0.9em;">Supplier:</strong>
+        </xpath>
+        <xpath expr="//div[@t-field='o.partner_id']" position="attributes">
+            <attribute name="style">font-size: 0.85em; line-height: 1.3; margin-bottom: 8px;</attribute>
+        </xpath>
+
+        <!-- Reduce shipping address size -->
+        <xpath expr="//strong[text()='Shipping address']" position="attributes">
+            <attribute name="style">font-size: 0.9em; margin-top: 8px !important; display: block;</attribute>
+        </xpath>
+        <xpath expr="//div[@t-field='o.dest_address_id']" position="attributes">
+            <attribute name="style">font-size: 0.85em; line-height: 1.3;</attribute>
+        </xpath>
+
+        <!-- Hide information block and add only Order date -->
+        <xpath expr="//div[@id='informations']" position="replace">
+            <div id="informations" class="row" style="font-size: 0.9em;">
+                <div t-if="o.state in ['purchase','done'] and o.date_approve" class="col-3 bm-2">
+                    <strong>Order Date:</strong>
+                    <p t-field="o.date_approve" t-options="{'date_only': 'true'}" class="m-0"/>
+                </div>
+                <div t-elif="o.date_order" class="col-2 bm-2">
+                    <strong>Order Deadline:</strong>
+                    <p t-field="o.date_order" t-options="{'date_only': 'true'}" class="m-0"/>
+                </div>
+                <div t-if="o.partner_ref" class="col-3 bm-2">
+                    <strong>Your Order Reference:</strong>
+                    <p t-field="o.partner_ref" class="m-0"/>
+                </div>
+            </div>
+        </xpath>
+
+        <!-- Reduce table font size and add page break avoidance -->
+        <xpath expr="//table[hasclass('o_main_table')]" position="attributes">
+            <attribute name="style">font-size: 0.9em;</attribute>
+        </xpath>
+        <xpath expr="//table[hasclass('o_main_table')]/tbody" position="attributes">
+            <attribute name="style">page-break-inside: avoid;</attribute>
+        </xpath>
+        <xpath expr="//table[hasclass('o_main_table')]/tbody/t/tr" position="attributes">
+            <attribute name="style">line-height: 1.2;</attribute>
+        </xpath>
+        <xpath expr="//table[hasclass('o_main_table')]/tbody/t/tr/t/td" position="attributes">
+            <attribute name="style">padding: 3px 5px;</attribute>
+        </xpath>
+
+        <!-- Reduce totals font size -->
+        <xpath expr="//div[@id='total']" position="attributes">
+            <attribute name="style">font-size: 0.9em; margin-top: 8px !important;</attribute>
         </xpath>
         
         <xpath expr="//p[@t-field='o.notes']" position="replace"/>
@@ -13,16 +76,39 @@
 
         <xpath expr="//strong[text()='Payment Terms: ']" position="replace"/>
         <xpath expr="//span[@t-field='o.payment_term_id']" position="replace">
-            <t t-if="o.notes">
-                <strong><u>Terms and conditions</u>: </strong>
-                <span t-field="o.notes" class="mt-4"/>
-                <!--<p t-field="o.notes" class="mt-4"/>-->
-                <div class="oe_structure"/>
-            </t>
-            
-            <t t-if="o.payment_term_id">
-                <strong>Payment Terms: </strong>
-                <span t-field="o.payment_term_id" class="mt-4"/>
+            <!-- adding this for page break and if you dont want page break comment out div style one and un-comment below -->
+            <!-- <div style="font-size: 0.9em; margin-top: 12px;"> -->
+            <div style="page-break-inside: avoid !important; font-size: 0.9em; margin-top: 12px;">
+                <t t-if="o.notes">
+                    <strong><u>Terms and conditions</u>: </strong>
+                    <p t-field="o.notes" style="margin-top: 8px; margin-bottom: 8px;"/>
+                </t>
+                
+                <t t-if="o.payment_term_id">
+                    <strong>Payment Terms: </strong>
+                    <span t-field="o.payment_term_id" style="margin-top: 8px;"/>
+                </t>
+            </div>
+        </xpath>
+
+        <!-- Replace the signature section added by digital_signature module -->
+        <xpath expr="//div[@id='signature']" position="replace">
+            <t t-if="'digital_sign' in o._fields">
+                <!-- adding this for page break and if you want page break comment out that div id="signature" one and un-comment below -->
+                <!-- <div id="signature" class="row justify-content-end mt-4" style="page-break-inside: avoid !important; font-size: 0.9em;"> -->
+                <div id="signature" class="row justify-content-end" style="font-size: 0.9em; margin-top: 16px;">
+                    <div class="col-4" style="text-align: right;">
+                        <div t-if="o.digital_sign" name="signature">
+                            <img t-att-src="image_data_uri(o.digital_sign)"
+                                 style="max-height: 2.5cm; max-width: 5cm;"/>
+                        </div>
+                        <div>
+                            <p t-if="o.sign_by" t-field="o.sign_by" style="margin-bottom: 0;"/>
+                            <p t-if="o.designation" t-field="o.designation" style="margin-bottom: 0;"/>
+                            <p t-if="o.sign_on" t-field="o.sign_on" style="margin-bottom: 0;"/>
+                        </div>
+                    </div>
+                </div>
             </t>
         </xpath>
 

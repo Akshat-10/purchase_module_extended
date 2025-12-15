@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <template id="purchase_quotation_report_german" inherit_id="purchase.report_purchasequotation_document">
+        <!-- Set company context for footer -->
+        <xpath expr="//t[@t-call='web.external_layout']" position="before">
+            <t t-set="company" t-value="o.company_id"/>
+        </xpath>
+
+        <!-- Update document title based on order_type -->
+        <xpath expr="//t[@t-set='layout_document_title']" position="replace">
+            <t t-set="layout_document_title" style="font-size: 1.125em; margin-bottom: 8px;">
+                <t t-set="order_type_label" t-value="'Request for Quotation' if o.order_type == 'purchase_order' else 'Work Order Quotation' if o.order_type == 'work_order' else 'Service Order Quotation' if o.order_type == 'service_order' else 'AMC Quotation' if o.order_type == 'amc' else 'Request for Quotation'"/>
+                <span t-esc="order_type_label"/>
+            </t>
+        </xpath>
+
+        <!-- Add Supplier Label to address -->
+        <xpath expr="//div[@t-field='o.partner_id']" position="before">
+            <strong style="font-size: 0.9em;">Supplier:</strong>
+        </xpath>
+        <xpath expr="//div[@t-field='o.partner_id']" position="attributes">
+            <attribute name="style">font-size: 0.85em; line-height: 1.3; margin-bottom: 8px;</attribute>
+        </xpath>
+
+        <!-- Reduce shipping address size -->
+        <xpath expr="//strong[text()='Shipping address:']" position="attributes">
+            <attribute name="style">font-size: 0.9em; margin-top: 8px !important; display: block;</attribute>
+        </xpath>
+        <xpath expr="//div[@t-field='o.dest_address_id']" position="attributes">
+            <attribute name="style">font-size: 0.85em; line-height: 1.3;</attribute>
+        </xpath>
+
+        <!-- Add Order Date information after title -->
+        <xpath expr="//t[@t-set='layout_document_title']" position="after">
+            <div id="informations" class="row mb-4" style="font-size: 0.9em;">
+                <div t-if="o.date_order" class="col-3 bm-2">
+                    <strong>Order Date:</strong>
+                    <p t-field="o.date_order" t-options="{'date_only': 'true'}" class="m-0"/>
+                </div>
+                <div t-if="o.partner_ref" class="col-3 bm-2">
+                    <strong>Your Order Reference:</strong>
+                    <p t-field="o.partner_ref" class="m-0"/>
+                </div>
+            </div>
+        </xpath>
+
+        <!-- Reduce table font size and add page break avoidance -->
+        <xpath expr="//table[hasclass('table-borderless')]" position="attributes">
+            <attribute name="style">font-size: 0.9em;</attribute>
+        </xpath>
+        <xpath expr="//table[hasclass('table-borderless')]/tbody" position="attributes">
+            <attribute name="style">page-break-inside: avoid;</attribute>
+        </xpath>
+        <xpath expr="//table[hasclass('table-borderless')]/tbody/t/tr" position="attributes">
+            <attribute name="style">line-height: 1.2;</attribute>
+        </xpath>
+        <xpath expr="//table[hasclass('table-borderless')]/tbody/t/tr/t/td" position="attributes">
+            <attribute name="style">padding: 3px 5px;</attribute>
+        </xpath>
+
+        <!-- Handle notes and payment terms -->
+        <xpath expr="//p[@t-field='o.notes']" position="replace"/>
+        <xpath expr="//div[@class='oe_structure'][2]" position="replace">
+            <div style="page-break-inside: avoid !important; font-size: 0.9em; margin-top: 12px;">
+                <t t-if="o.notes">
+                    <strong><u>Terms and conditions</u>: </strong>
+                    <p t-field="o.notes" style="margin-top: 8px; margin-bottom: 8px;"/>
+                </t>
+                
+                <t t-if="o.payment_term_id">
+                    <strong>Payment Terms: </strong>
+                    <span t-field="o.payment_term_id" style="margin-top: 8px;"/>
+                </t>
+            </div>
+        </xpath>
+    </template>
+</odoo>
