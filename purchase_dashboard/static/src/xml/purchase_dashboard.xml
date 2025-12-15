@@ -1,0 +1,563 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- Main Dashboard Template -->
+    <t t-name="purchase_dashboard.Dashboard">
+        <div class="o_purchase_dashboard">
+            <!-- Header Section -->
+            <div class="o_dashboard_header">
+                <div class="container-fluid">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h2 class="o_dashboard_title">
+                                <i class="fa fa-shopping-cart"/> Purchase Analytics Dashboard
+                            </h2>
+                        </div>
+                        <div class="col-md-6 text-right">
+                            <div class="o_dashboard_filters">
+                                <label>From:</label>
+                                <input type="date"
+                                       name="dateFrom"
+                                       class="o_dashboard_date_filter"
+                                       t-model="state.dateFrom"
+                                       t-on-change="onDateFilterChange"/>
+                                <label class="ml-3">To:</label>
+                                <input type="date"
+                                       name="dateTo"
+                                       class="o_dashboard_date_filter"
+                                       t-model="state.dateTo"
+                                       t-on-change="onDateFilterChange"/>
+                                <button class="btn btn-primary ml-3" t-on-click="onRefreshDashboard">
+                                    <i class="fa fa-refresh"/> Refresh
+                                </button>
+                                <button class="btn btn-success ml-2" t-on-click="onDownloadDashboard">
+                                    <i class="fa fa-download"/> Download
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div t-if="state.isLoading" class="o_dashboard_loading">
+                <div class="text-center">
+                    <i class="fa fa-spinner fa-spin fa-3x"/>
+                    <p class="mt-3">Loading dashboard data...</p>
+                </div>
+            </div>
+
+            <!-- Dashboard Content -->
+            <div t-else="" class="o_dashboard_content">
+                <!-- KPI Cards Row -->
+                <div class="container-fluid">
+                    <div class="row" style="display: flex; flex-wrap: wrap; margin: 0 -15px;">
+                        <!-- Column 1: Total PO Value & Avg Indent to PO -->
+                        <div class="col-xl-2 col-md-6">
+                            <div class="mb-4">
+                                <div class="o_kpi_card bg-primary" style="cursor: pointer;" t-on-click="onViewTotalPOs">
+                                    <div class="card-body">
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col mr-2">
+                                                <div class="o_kpi_label font-weight-bold text-primary text-uppercase mb-1">
+                                                    TOTAL PO VALUE
+                                                </div>
+                                                <div class="o_kpi_value h5 mb-0 font-weight-bold text-gray-800">
+                                                    <t t-esc="formatCurrency(state.totalSpendYearly)"/>
+                                                </div>
+                                            </div>
+                                            <div class="col-auto">
+                                                <i class="fas fa-dollar-sign fa-2x text-gray-300"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <div class="o_kpi_card bg-info" style="cursor: pointer;" t-on-click="onViewAvgIndentToPO">
+                                    <div class="card-body">
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col mr-2">
+                                                <div class="o_kpi_label font-weight-bold text-uppercase mb-1">
+                                                    Avg. time from Indent to PO
+                                                </div>
+                                                <div class="o_kpi_value h5 mb-0 font-weight-bold text-gray-800">
+                                                    <t t-esc="state.avgIndentToPO"/> days
+                                                </div>
+                                            </div>
+                                            <div class="col-auto">
+                                                <i class="fas fa-hourglass-half fa-2x text-gray-300"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Column 2: Total Inventory Cost & Avg PO to Receipt -->
+                        <div class="col-xl-2 col-md-6" style="flex: 1; min-width: 200px; padding: 0 15px;">
+                            <div class="mb-4">
+                                <div class="o_kpi_card bg-danger" style="cursor: pointer;" t-on-click="onViewTotalInventory">
+                                    <div class="card-body">
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col mr-2">
+                                                <div class="o_kpi_label font-weight-bold text-uppercase mb-1">
+                                                    Total Inventory Cost
+                                                </div>
+                                                <div class="o_kpi_value h5 mb-0 font-weight-bold text-gray-800">
+                                                    <t t-esc="formatCurrency(state.totalInventoryCost)"/>
+                                                </div>
+                                            </div>
+                                            <div class="col-auto">
+                                                <i class="fas fa-boxes fa-2x text-gray-300"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <div class="o_kpi_card bg-warning" style="cursor: pointer;" t-on-click="onViewAvgPOToReceipt">
+                                    <div class="card-body">
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col mr-2">
+                                                <div class="o_kpi_label font-weight-bold text-uppercase mb-1">
+                                                    Avg. time from PO to Receipt
+                                                </div>
+                                                <div class="o_kpi_value h5 mb-0 font-weight-bold text-gray-800">
+                                                    <t t-esc="state.avgPOToReceipt"/> days
+                                                </div>
+                                            </div>
+                                            <div class="col-auto">
+                                                <i class="fas fa-truck fa-2x text-gray-300"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Column 3: No. of Items & New Vendors -->
+                        <div class="col-xl-2 col-md-6">
+                            <div class="mb-4">
+                                <div class="o_kpi_card bg-success" style="cursor: pointer;" t-on-click="onViewItemsWithPO">
+                                    <div class="card-body">
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col mr-2">
+                                                <div class="o_kpi_label font-weight-bold text-uppercase mb-1">
+                                                    No. of Items
+                                                </div>
+                                                <div class="o_kpi_value h5 mb-0 font-weight-bold text-gray-800">
+                                                    <t t-esc="formatNumber(state.itemsWithPO)"/>
+                                                </div>
+                                            </div>
+                                            <div class="col-auto">
+                                                <i class="fas fa-clipboard-list fa-2x text-gray-300"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <div class="o_kpi_card bg-info" style="cursor: pointer;" t-on-click="onViewNewVendors">
+                                    <div class="card-body">
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col mr-2">
+                                                <div class="o_kpi_label font-weight-bold text-uppercase mb-1">
+                                                    New Vendors (Monthly)
+                                                </div>
+                                                <div class="o_kpi_value h5 mb-0 font-weight-bold text-gray-800">
+                                                    <t t-esc="formatNumber(state.newVendorsCount)"/>
+                                                </div>
+                                            </div>
+                                            <div class="col-auto">
+                                                <i class="fas fa-users fa-2x text-gray-300"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Column 4: GRN Cleared & Avg. Consumption Cycle -->
+                        <div class="col-xl-2 col-md-6">
+                            <div class="mb-4">
+                                <div class="o_kpi_card bg-danger" style="cursor: pointer;" t-on-click="onViewGRNCleared">
+                                    <div class="card-body">
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col mr-2">
+                                                <div class="o_kpi_label font-weight-bold text-uppercase mb-1">
+                                                    GRN Cleared
+                                                </div>
+                                                <div class="o_kpi_value h5 mb-0 font-weight-bold text-gray-800">
+                                                    <t t-esc="formatNumber(state.grnClearedCount)"/>
+                                                </div>
+                                            </div>
+                                            <div class="col-auto">
+                                                <i class="fas fa-check-circle fa-2x text-gray-300"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <div class="o_kpi_card bg-warning" style="cursor: pointer;" t-on-click="onViewAvgConsumptionCycle">
+                                    <div class="card-body">
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col mr-2">
+                                                <div class="o_kpi_label font-weight-bold text-uppercase mb-1">
+                                                    Avg. Consumption Cycle
+                                                </div>
+                                                <div class="o_kpi_value h5 mb-0 font-weight-bold text-gray-800">
+                                                    <t t-esc="state.avgConsumptionCycle"/> days
+                                                </div>
+                                            </div>
+                                            <div class="col-auto">
+                                                <i class="fas fa-clock fa-2x text-gray-300"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Column 5: Inventory Not Moved -->
+                        <div class="col-xl-3 col-md-6 mb-4" style="flex: 1.5; min-width: 280px; padding: 0 15px;">
+                            <div class="o_kpi_card bg-primary">
+                                <div class="inventory-card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="o_kpi_label font-weight-bold text-uppercase mb-1">
+                                                Inventory Not Moved
+                                            </div>
+                                            <div class="o_kpi_value h5 mb-0 font-weight-bold text-gray-800">
+                                                <t t-esc="formatNumber(state.notMoved30 + state.notMoved45 + state.notMoved60)"/>
+                                            </div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <div class="d-flex flex-column" style="gap: 4px;">
+                                                <button class="btn btn-sm px-2 py-1"
+                                                        t-on-click="() => this.onViewInventoryNotMoved(30)"
+                                                        style="font-size: 0.65rem; min-width: 110px; border: 1px solid #000; background: white; color: #000;">
+                                                    30+ Days (<t t-esc="formatNumber(state.notMoved30)"/>)
+                                                </button>
+                                                <button class="btn btn-sm px-2 py-1"
+                                                        t-on-click="() => this.onViewInventoryNotMoved(45)"
+                                                        style="font-size: 0.65rem; min-width: 110px; border: 1px solid #000; background: white; color: #000;">
+                                                    45+ Days (<t t-esc="formatNumber(state.notMoved45)"/>)
+                                                </button>
+                                                <button class="btn btn-sm px-2 py-1"
+                                                        t-on-click="() => this.onViewInventoryNotMoved(60)"
+                                                        style="font-size: 0.65rem; min-width: 110px; border: 1px solid #000; background: white; color: #000;">
+                                                    60+ Days (<t t-esc="formatNumber(state.notMoved60)"/>)
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Section -->
+                    <div class="row">
+                        <!-- Monthly PO Status Chart -->
+                        <div class="col-12 mb-4">
+                            <div class="card shadow">
+                                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                                    <h6 class="m-0 font-weight-bold text-primary">Monthly Procurement Status</h6>
+                                    <button class="btn btn-sm btn-primary" t-on-click="onViewMonthlyPOStatus">
+                                        <i class="fa fa-external-link"/> View All
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="o_chart_container" style="height: 300px;">
+                                        <canvas id="monthlyPOStatusChart"></canvas>
+                                    </div>
+                                    <div class="table-responsive mt-4">
+                                        <table class="table table-sm table-bordered">
+                                            <thead>
+                                                <tr>
+                                                    <th>Month</th>
+                                                    <th class="text-center">Approved</th>
+                                                    <th class="text-center">Pending</th>
+                                                    <th class="text-center">Indent</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <t t-foreach="state.monthlyPOStatus" t-as="month" t-key="month.month">
+                                                    <tr>
+                                                        <td><t t-esc="month.month"/></td>
+                                                        <td class="text-center"><span class="badge badge-success"><t t-esc="month.approved"/></span></td>
+                                                        <td class="text-center"><span class="badge badge-warning"><t t-esc="month.pending"/></span></td>
+                                                        <td class="text-center"><span class="badge badge-info"><t t-esc="month.indent"/></span></td>
+                                                    </tr>
+                                                </t>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Monthly GRN and PO Release Row -->
+                    <div class="row">
+                        <div class="col-xl-6 col-lg-6 mb-4">
+                            <div class="card shadow">
+                                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                                    <h6 class="m-0 font-weight-bold text-primary">Monthly GRN Cleared</h6>
+                                    <button class="btn btn-sm btn-primary" t-on-click="onViewGRNRecords">
+                                        <i class="fa fa-external-link"/> View All
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="o_chart_container" style="height: 300px;">
+                                        <canvas id="monthlyGRNChart"></canvas>
+                                    </div>
+                                    <div class="table-responsive mt-4">
+                                        <table class="table table-sm table-bordered">
+                                            <thead>
+                                                <tr>
+                                                    <th>Month</th>
+                                                    <th class="text-center">GRN Count</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <t t-foreach="state.monthlyGRN" t-as="month" t-key="month.month">
+                                                    <tr>
+                                                        <td><t t-esc="month.month"/></td>
+                                                        <td class="text-center"><t t-esc="month.count"/></td>
+                                                    </tr>
+                                                </t>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-6 col-lg-6 mb-4">
+                            <div class="card shadow">
+                                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                                    <h6 class="m-0 font-weight-bold text-primary">Monthly PO Release (Planned vs Released)</h6>
+                                    <button class="btn btn-sm btn-primary" t-on-click="onViewPORelease">
+                                        <i class="fa fa-external-link"/> View All
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="o_chart_container" style="height: 300px;">
+                                        <canvas id="monthlyPOChart"></canvas>
+                                    </div>
+                                    <div class="table-responsive mt-4">
+                                        <table class="table table-sm table-bordered">
+                                            <thead>
+                                                <tr>
+                                                    <th>Month</th>
+                                                    <th class="text-center">Planned</th>
+                                                    <th class="text-center">Released</th>
+                                                    <th class="text-center">%</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <t t-foreach="state.monthlyReleasePO" t-as="month" t-key="month.month">
+                                                    <tr>
+                                                        <td><t t-esc="month.month"/></td>
+                                                        <td class="text-center"><t t-esc="month.planned"/></td>
+                                                        <td class="text-center"><t t-esc="month.released"/></td>
+                                                        <td class="text-center">
+                                                            <t t-if="month.planned > 0">
+                                                                <span t-att-class="'badge badge-' + (month.released / month.planned >= 0.8 ? 'success' : 'warning')">
+                                                                    <t t-esc="Math.round((month.released / month.planned) * 100)"/>%
+                                                                </span>
+                                                            </t>
+                                                            <t t-else="">-</t>
+                                                        </td>
+                                                    </tr>
+                                                </t>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Department and Commodity Row -->
+                    <div class="row">
+                        <div class="col-xl-6 col-lg-6 mb-4">
+                            <div class="card shadow">
+                                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                                    <h6 class="m-0 font-weight-bold text-primary">Department-wise Inventory Distribution</h6>
+                                    <button class="btn btn-sm btn-primary" t-on-click="onViewDepartmentInventory">
+                                        <i class="fa fa-external-link"/> View All
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="o_chart_container" style="height: 300px;">
+                                        <canvas id="departmentInventoryChart"></canvas>
+                                    </div>
+                                    <div class="table-responsive mt-4">
+                                        <table class="table table-sm table-bordered">
+                                            <thead>
+                                                <tr>
+                                                    <th>Department</th>
+                                                    <th class="text-center">Products</th>
+                                                    <th class="text-right">Total Quantity</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <t t-foreach="state.departmentInventory" t-as="dept" t-key="dept.id">
+                                                    <tr>
+                                                        <td><t t-esc="dept.name"/></td>
+                                                        <td class="text-center"><t t-esc="dept.productCount"/></td>
+                                                        <td class="text-right"><t t-esc="formatNumber(dept.totalQty)"/></td>
+                                                    </tr>
+                                                </t>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-6 col-lg-6 mb-4">
+                            <div class="card shadow">
+                                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                                    <h6 class="m-0 font-weight-bold text-primary">Spend by Commodity/Category</h6>
+                                    <button class="btn btn-sm btn-primary" t-on-click="onViewCommoditySpend">
+                                        <i class="fa fa-external-link"/> View All
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="o_chart_container" style="height: 300px;">
+                                        <canvas id="commodityChart"></canvas>
+                                    </div>
+                                    <div class="table-responsive mt-4">
+                                        <table class="table table-sm table-bordered">
+                                            <thead>
+                                                <tr>
+                                                    <th>Category</th>
+                                                    <th class="text-center">Products</th>
+                                                    <th class="text-right">Total Spend</th>
+                                                    <th class="text-center">% of Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <t t-foreach="state.commoditySpend.slice(0, 10)" t-as="commodity" t-key="commodity.category">
+                                                    <tr>
+                                                        <td><t t-esc="commodity.category"/></td>
+                                                        <td class="text-center"><t t-esc="commodity.productCount"/></td>
+                                                        <td class="text-right"><t t-esc="formatCurrency(commodity.totalSpend)"/></td>
+                                                        <td class="text-center">
+                                                            <t t-set="totalSpend" t-value="state.commoditySpend.reduce((sum, c) => sum + c.totalSpend, 0)"/>
+                                                            <t t-if="totalSpend > 0">
+                                                                <span class="badge badge-info">
+                                                                    <t t-esc="Math.round((commodity.totalSpend / totalSpend) * 100)"/>%
+                                                                </span>
+                                                            </t>
+                                                            <t t-else="">-</t>
+                                                        </td>
+                                                    </tr>
+                                                </t>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Suppliers and PO Evaluation Row -->
+                    <div class="row">
+                        <div class="col-xl-6 col-lg-6 mb-4">
+                            <div class="card shadow">
+                                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                                    <h6 class="m-0 font-weight-bold text-primary">Top Suppliers</h6>
+                                    <button class="btn btn-sm btn-primary" t-on-click="onViewTopSuppliers">
+                                        <i class="fa fa-external-link"/> View All
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive mt-4">
+                                        <table class="table table-sm table-bordered">
+                                            <thead>
+                                                <tr>
+                                                    <th>Supplier</th>
+                                                    <th class="text-right">Total Spend</th>
+                                                    <th class="text-center">PO Count</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <t t-foreach="state.topSuppliers.slice(0, 5)" t-as="supplier" t-key="supplier.id">
+                                                    <tr>
+                                                        <td><t t-esc="supplier.name"/></td>
+                                                        <td class="text-right"><t t-esc="formatCurrency(supplier.totalSpend)"/></td>
+                                                        <td class="text-center"><t t-esc="supplier.poCount"/></td>
+                                                    </tr>
+                                                </t>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-6 col-lg-6 mb-4">
+                            <div class="card shadow">
+                                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                                    <h6 class="m-0 font-weight-bold text-primary">Monthly PO Evaluation (Planned vs Released)</h6>
+                                    <button class="btn btn-sm btn-primary" t-on-click="onViewPOEvaluation">
+                                        <i class="fa fa-external-link"/> View All
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="o_chart_container" style="height: 300px;">
+                                        <canvas id="monthlyValuesChart"></canvas>
+                                    </div>
+                                    <div class="table-responsive mt-4">
+                                        <table class="table table-sm table-bordered">
+                                            <thead>
+                                                <tr>
+                                                    <th>Month</th>
+                                                    <th class="text-right">Planned Value</th>
+                                                    <th class="text-right">Actual Value</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <t t-foreach="state.monthlyPOValues" t-as="month" t-key="month.month">
+                                                    <tr>
+                                                        <td><t t-esc="month.month"/></td>
+                                                        <td class="text-right"><t t-esc="formatCurrency(month.plannedValue)"/></td>
+                                                        <td class="text-right"><t t-esc="formatCurrency(month.actualValue)"/></td>
+                                                    </tr>
+                                                </t>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Consumption Cycle Chart -->
+                    <div class="row">
+                        <div class="col-12 mb-4">
+                            <div class="card shadow">
+                                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                                    <h6 class="m-0 font-weight-bold text-primary">Top Products by Consumption Cycle</h6>
+                                    <button class="btn btn-sm btn-primary" t-on-click="onViewConsumptionCycle">
+                                        <i class="fa fa-external-link"/> View All
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="o_chart_container" style="height: 400px;">
+                                        <canvas id="consumptionChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>
