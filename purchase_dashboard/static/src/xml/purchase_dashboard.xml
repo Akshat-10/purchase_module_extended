@@ -2,7 +2,7 @@
 <templates xml:space="preserve">
     <!-- Main Dashboard Template -->
     <t t-name="purchase_dashboard.Dashboard">
-        <div class="o_purchase_dashboard">
+        <div class="o_com_purchase_dashboard">
             <!-- Header Section -->
             <div class="o_dashboard_header">
                 <div class="container-fluid">

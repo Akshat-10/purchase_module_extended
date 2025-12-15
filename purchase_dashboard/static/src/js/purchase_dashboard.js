@@ -1043,7 +1043,7 @@ export class PurchaseDashboard extends Component {
             await new Promise(resolve => setTimeout(resolve, 300));
 
             // Get the dashboard content element
-            const dashboardElement = document.querySelector('.o_purchase_dashboard');
+            const dashboardElement = document.querySelector('.o_com_purchase_dashboard');
 
             if (!dashboardElement) {
                 throw new Error('Dashboard element not found');

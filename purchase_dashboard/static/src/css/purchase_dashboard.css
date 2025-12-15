@@ -2,7 +2,7 @@
 .o_action_manager {
     overflow-y: auto !important;
 }
-.o_purchase_dashboard {
+.o_com_purchase_dashboard {
     background: url('/purchase_dashboard/static/src/img/luxa.org-opacity-changed-._dashboard_bg (1).png') no-repeat center  center fixed;
     min-height: 100vh;
     background-size: cover;
