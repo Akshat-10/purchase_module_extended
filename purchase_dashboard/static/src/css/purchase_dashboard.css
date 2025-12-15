@@ -448,6 +448,32 @@
     margin: 20px 0;
 }
 
+/* Horizontal Scroll Container for Charts */
+.o_chart_scroll_container {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 10px;
+}
+
+.o_chart_scroll_container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.o_chart_scroll_container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+
+.o_chart_scroll_container::-webkit-scrollbar-thumb {
+    background: rgba(68, 146, 189, 0.6);
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.o_chart_scroll_container::-webkit-scrollbar-thumb:hover {
+    background: rgba(68, 146, 189, 0.9);
+}
+
 /* Print Styles */
 @media print {
     .o_dashboard_filters,

@@ -1686,6 +1686,13 @@ export class PurchaseDashboard extends Component {
 
         console.log("Creating monthly PO status chart...");
 
+        const monthCount = this.state.monthlyPOStatus.length;
+        const minBarWidth = 40;
+        const calculatedWidth = Math.max(100, monthCount * minBarWidth);
+
+        const chartContainer = canvas.parentElement;
+        chartContainer.style.minWidth = `${calculatedWidth}%`;
+
         this.charts.monthlyPOStatus = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -1698,6 +1705,8 @@ export class PurchaseDashboard extends Component {
                         borderColor: 'rgba(16, 185, 129, 1)',
                         borderWidth: 1,
                         borderRadius: 6,
+                        barThickness: 'flex',
+                        maxBarThickness: 60,
                     },
                     {
                         label: 'Pending',
@@ -1706,6 +1715,8 @@ export class PurchaseDashboard extends Component {
                         borderColor: 'rgba(245, 158, 11, 1)',
                         borderWidth: 1,
                         borderRadius: 6,
+                        barThickness: 'flex',
+                        maxBarThickness: 60,
                     },
                     {
                         label: 'Indent',
@@ -1714,6 +1725,8 @@ export class PurchaseDashboard extends Component {
                         borderColor: 'rgba(59, 130, 246, 1)',
                         borderWidth: 1,
                         borderRadius: 6,
+                        barThickness: 'flex',
+                        maxBarThickness: 60,
                     }
                 ]
             },
@@ -1723,13 +1736,44 @@ export class PurchaseDashboard extends Component {
                 plugins: {
                     legend: {
                         position: 'top',
+                        align: 'center',
+                        labels: {
+                            boxWidth: 15,
+                            padding: 20,
+                            font: {
+                                size: 13,
+                                weight: '600'
+                            }
+                        }
                     }
                 },
                 scales: {
+                    x: {
+                        grid: {
+                            display: true,
+                            drawOnChartArea: true,
+                            drawTicks: true,
+                            color: function(context) {
+                                // Draw vertical lines between months
+                                return 'rgba(0, 0, 0, 0.1)';
+                            },
+                            lineWidth: 1
+                        },
+                        ticks: {
+                            font: {
+                                size: 12,
+                                weight: '500'
+                            }
+                        }
+                    },
                     y: {
                         beginAtZero: true,
                         ticks: {
                             precision: 0
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)',
+                            lineWidth: 1
                         }
                     }
                 }
