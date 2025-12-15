@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Inherit and modify report_purchase_quotation print_report_name -->
+    <record id="purchase.report_purchase_quotation" model="ir.actions.report">
+        <field name="print_report_name">'RFQ - %s - %s' % (object.name, object.partner_id.name or '')</field>
+    </record>
+
+    <!-- Inherit and modify action_report_purchase_order print_report_name -->
+    <record id="purchase.action_report_purchase_order" model="ir.actions.report">
+        <field name="print_report_name">
+            (object.state in ('draft', 'sent') and 'RFQ - %s - %s' % (object.name, object.partner_id.name or '') or
+            'PO - %s - %s' % (object.name, object.partner_id.name or ''))</field>
+    </record>
+</odoo>

@@ -44,6 +44,10 @@
             </div>
         </xpath>
 
+        <!-- Hide Expected Date column header and body -->
+        <xpath expr="//th[@name='th_expected_date']" position="replace"/>
+        <xpath expr="//table[hasclass('table-borderless')]/tbody/t/tr/t[not(@t-else)]/td[2]" position="replace"/>
+
         <!-- Reduce table font size and add page break avoidance -->
         <xpath expr="//table[hasclass('table-borderless')]" position="attributes">
             <attribute name="style">font-size: 0.9em;</attribute>

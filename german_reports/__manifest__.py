@@ -14,6 +14,7 @@
         'views/purchase_order_view.xml',
         'views/purchase_order_report_updation.xml',
         'views/purchase_report_german.xml',
+        'views/purchase_reports_inherit.xml',
     ],
     'assets': {
         'web.report_assets_common': [
