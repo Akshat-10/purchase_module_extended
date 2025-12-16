@@ -103,7 +103,7 @@
                                  style="max-height: 2.5cm; max-width: 5cm;"/>
                         </div>
                         <div>
-                            <p t-if="o.sign_by" t-field="o.sign_by" style="margin-bottom: 0;"/>
+                            <p t-if="o.sign_by" t-field="o.sign_by" style="margin-bottom: 35px;"/>
                             <p t-if="o.designation" t-field="o.designation" style="margin-bottom: 0;"/>
                             <p t-if="o.sign_on" t-field="o.sign_on" style="margin-bottom: 0;"/>
                         </div>
