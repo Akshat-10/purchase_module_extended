@@ -1,0 +1,713 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- Master Comparison Dashboard Template -->
+    <t t-name="master_comparison_dashboard.MasterDashboard">
+        <div class="o_master_comparison_dashboard">
+            <!-- Header Section -->
+            <div class="master_dashboard_header">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h1 class="master_dashboard_title">
+                            <i class="fa fa-balance-scale"/>
+                            Master Purchase Dashboard
+                        </h1>
+                    </div>
+                    <div class="col-md-6 text-right">
+                        <div class="master_dashboard_filters">
+                            <label>From:</label>
+                            <input type="date"
+                                   name="dateFrom"
+                                   class="master_date_filter"
+                                   t-model="state.dateFrom"
+                                   t-on-change="onDateFilterChange"/>
+                            <label>To:</label>
+                            <input type="date"
+                                   name="dateTo"
+                                   class="master_date_filter"
+                                   t-model="state.dateTo"
+                                   t-on-change="onDateFilterChange"/>
+                            <button class="btn btn-primary" t-on-click="onRefreshDashboard">
+                                <i class="fa fa-refresh"/> Refresh
+                            </button>
+                            <button class="btn btn-success ml-2" t-on-click="onDownloadDashboard">
+                                <i class="fa fa-download"/> Download
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div t-if="state.isLoading" class="master_loading">
+                <div class="text-center">
+                    <i class="fa fa-spinner fa-spin"/>
+                    <p class="mt-3" style="color: #667eea; font-weight: 600;">Loading comparison data...</p>
+                </div>
+            </div>
+
+            <!-- Dashboard Content -->
+            <div t-else="" class="dashboard_content">
+                <!-- Comparison Grid -->
+                <div class="comparison_container">
+                    <!-- Company A Section -->
+                    <div class="company_section company_a">
+                        <div class="company_header">
+                            <t t-esc="state.companyA.name"/>
+                        </div>
+
+                        <!-- KPI Cards -->
+                        <div class="kpi_grid">
+                            <!-- Total PO Value -->
+                            <div class="kpi_card_master bg-primary" style="cursor: pointer;" t-on-click="() => this.onViewTotalPOs('companyA')">
+                                <div class="kpi_label_master">Total PO Value</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="formatCurrency(state.companyA.totalSpend)"/>
+                                </div>
+                            </div>
+
+                            <!-- Total Inventory Cost -->
+                            <div class="kpi_card_master bg-info" style="cursor: pointer;" t-on-click="() => this.onViewTotalInventory('companyA')">
+                                <div class="kpi_label_master">Inventory Cost</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="formatCurrency(state.companyA.inventoryCost)"/>
+                                </div>
+                            </div>
+
+                            <!-- No. of Items -->
+                            <div class="kpi_card_master bg-danger" style="cursor: pointer;" t-on-click="() => this.onViewItemsWithPO('companyA')">
+                                <div class="kpi_label_master">No. of Items</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="formatNumber(state.companyA.itemsCount)"/>
+                                </div>
+                            </div>
+
+                            <!-- GRN Cleared -->
+                            <div class="kpi_card_master bg-success" style="cursor: pointer;" t-on-click="() => this.onViewGRNCleared('companyA')">
+                                <div class="kpi_label_master">GRN Cleared</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="formatNumber(state.companyA.grnCount)"/>
+                                </div>
+                            </div>
+
+                            <!-- Avg Indent to PO -->
+                            <div class="kpi_card_master bg-warning" style="cursor: pointer;" t-on-click="() => this.onViewAvgIndentToPO('companyA')">
+                                <div class="kpi_label_master">Avg. Indent to PO</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="state.companyA.avgIndentToPO"/> days
+                                </div>
+                            </div>
+
+                            <!-- Avg PO to Receipt -->
+                            <div class="kpi_card_master bg-info" style="cursor: pointer;" t-on-click="() => this.onViewAvgPOToReceipt('companyA')">
+                                <div class="kpi_label_master">Avg. PO to Receipt</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="state.companyA.avgPOToReceipt"/> days
+                                </div>
+                            </div>
+
+                            <!-- New Vendors -->
+                            <div class="kpi_card_master bg-danger" style="cursor: pointer;" t-on-click="() => this.onViewNewVendors('companyA')">
+                                <div class="kpi_label_master">New Vendors (Monthly)</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="state.companyA.newVendorsCount"/>
+                                </div>
+                            </div>
+
+                            <!-- Avg Consumption Cycle -->
+                            <div class="kpi_card_master bg-primary" style="cursor: pointer;" t-on-click="() => this.onViewAvgConsumptionCycle('companyA')">
+                                <div class="kpi_label_master">Avg. Consumption Cycle</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="state.companyA.avgConsumptionCycle"/> days
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Monthly Procurement Chart -->
+                        <div class="chart_section_master">
+                            <div class="chart_header_master">
+                                <i class="fa fa-chart-bar"/> Monthly Procurement Status
+                                <button class="btn btn-sm btn-primary" t-on-click="() => this.onViewMonthlyPOStatus('companyA')">
+                                    <i class="fa fa-external-link"/> View All
+                                </button>
+                            </div>
+                            <div class="chart_container_master">
+                                <canvas id="procurementChartA"></canvas>
+                            </div>
+                            <table class="data_table_master">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <th class="text-center">Approved</th>
+                                        <th class="text-center">Pending</th>
+                                        <th class="text-center">Indent</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="state.companyA.monthlyProcurement" t-as="month" t-key="month.month">
+                                        <tr>
+                                            <td><t t-esc="month.month"/></td>
+                                            <td class="text-center">
+                                                <span class="badge_master success"><t t-esc="month.approved"/></span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge_master warning"><t t-esc="month.pending"/></span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge_master info"><t t-esc="month.indent"/></span>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Monthly GRN Chart -->
+                        <div class="chart_section_master">
+                            <div class="chart_header_master">
+                                <i class="fa fa-chart-line"/> Monthly GRN Count
+                                <button class="btn btn-sm btn-primary" t-on-click="() => this.onViewGRNRecords('companyA')">
+                                    <i class="fa fa-external-link"/> View All
+                                </button>
+                            </div>
+                            <div class="chart_container_master">
+                                <canvas id="grnChartA"></canvas>
+                            </div>
+                            <table class="data_table_master">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <th class="text-center">GRN Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="state.companyA.monthlyGRN" t-as="month" t-key="month.month">
+                                        <tr>
+                                            <td><t t-esc="month.month"/></td>
+                                            <td class="text-center"><t t-esc="month.count"/></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Monthly PO Release Chart -->
+                        <div class="chart_section_master">
+                            <div class="chart_header_master">
+                                <i class="fa fa-chart-line"/> Monthly PO Release (Planned vs Released)
+                                <button class="btn btn-sm btn-primary " t-on-click="() => this.onViewPORelease('companyA')">
+                                    <i class="fa fa-external-link"/> View All
+                                </button>
+                            </div>
+                            <div class="chart_container_master">
+                                <canvas id="poReleaseChartA"></canvas>
+                            </div>
+                            <table class="data_table_master">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <th class="text-center">Planned</th>
+                                        <th class="text-center">Released</th>
+                                        <th class="text-center">%</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="state.companyA.monthlyPORelease" t-as="month" t-key="month.month">
+                                        <tr>
+                                            <td><t t-esc="month.month"/></td>
+                                            <td class="text-center"><t t-esc="month.planned"/></td>
+                                            <td class="text-center"><t t-esc="month.released"/></td>
+                                            <td class="text-center">
+                                                <t t-if="month.planned > 0">
+                                                    <span t-att-class="'badge_master ' + (month.released / month.planned >= 0.8 ? 'success' : 'warning')">
+                                                        <t t-esc="Math.round((month.released / month.planned) * 100)"/>%
+                                                    </span>
+                                                </t>
+                                                <t t-else="">-</t>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Monthly PO Evaluation Chart -->
+                        <div class="chart_section_master">
+                            <div class="chart_header_master">
+                                <i class="fa fa-chart-bar"/> Monthly PO Evaluation (Planned vs Released)
+                                <button class="btn btn-sm btn-primary " t-on-click="() => this.onViewPOEvaluation('companyA')">
+                                    <i class="fa fa-external-link"/> View All
+                                </button>
+                            </div>
+                            <div class="chart_container_master">
+                                <canvas id="poEvaluationChartA"></canvas>
+                            </div>
+                            <table class="data_table_master">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <th class="text-right">Planned Value</th>
+                                        <th class="text-right">Actual Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="state.companyA.monthlyPOEvaluation" t-as="month" t-key="month.month">
+                                        <tr>
+                                            <td><t t-esc="month.month"/></td>
+                                            <td class="text-right"><t t-esc="formatCurrency(month.plannedValue)"/></td>
+                                            <td class="text-right"><t t-esc="formatCurrency(month.actualValue)"/></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Department-wise Inventory Distribution -->
+                        <div class="chart_section_master">
+                            <div class="chart_header_master">
+                                <i class="fa fa-chart-pie"/> Department-wise Inventory Distribution
+                                <button class="btn btn-sm btn-primary " t-on-click="() => this.onViewDepartmentInventory('companyA')">
+                                    <i class="fa fa-external-link"/> View All
+                                </button>
+                            </div>
+                            <div class="chart_container_master" style="height: 300px;">
+                                <canvas id="departmentChartA"></canvas>
+                            </div>
+                            <table class="data_table_master">
+                                <thead>
+                                    <tr>
+                                        <th>Department</th>
+                                        <th class="text-center">Products</th>
+                                        <th class="text-right">Total Quantity</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="state.companyA.departmentInventory" t-as="dept" t-key="dept.id">
+                                        <tr>
+                                            <td><t t-esc="dept.name"/></td>
+                                            <td class="text-center"><t t-esc="dept.productCount"/></td>
+                                            <td class="text-right"><t t-esc="formatNumber(dept.totalQty)"/></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Spend by Commodity/Category -->
+                        <div class="chart_section_master">
+                            <div class="chart_header_master">
+                                <i class="fa fa-chart-pie"/> Spend by Commodity/Category
+                                <button class="btn btn-sm btn-primary " t-on-click="() => this.onViewCommoditySpend('companyA')">
+                                    <i class="fa fa-external-link"/> View All
+                                </button>
+                            </div>
+                            <div class="chart_container_master" style="height: 300px;">
+                                <canvas id="commodityChartA"></canvas>
+                            </div>
+                            <table class="data_table_master">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th class="text-center">Products</th>
+                                        <th class="text-right">Total Spend</th>
+                                        <th class="text-center">% of Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="state.companyA.commoditySpend.slice(0, 10)" t-as="commodity" t-key="commodity.category">
+                                        <tr>
+                                            <td><t t-esc="commodity.category"/></td>
+                                            <td class="text-center"><t t-esc="commodity.productCount"/></td>
+                                            <td class="text-right"><t t-esc="formatCurrency(commodity.totalSpend)"/></td>
+                                            <td class="text-center">
+                                                <t t-set="totalSpend" t-value="state.companyA.commoditySpend.reduce((sum, c) => sum + c.totalSpend, 0)"/>
+                                                <t t-if="totalSpend > 0">
+                                                    <span class="badge_master info">
+                                                        <t t-esc="Math.round((commodity.totalSpend / totalSpend) * 100)"/>%
+                                                    </span>
+                                                </t>
+                                                <t t-else="">-</t>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Top Suppliers -->
+                        <div class="chart_section_master">
+                            <div class="chart_header_master">
+                                <i class="fa fa-users"/> Top Suppliers
+                                <button class="btn btn-sm btn-primary " t-on-click="() => this.onViewTopSuppliers('companyA')">
+                                    <i class="fa fa-external-link"/> View All
+                                </button>
+                            </div>
+                            <div class="chart_container_master" style="height: 300px;">
+                                <canvas id="suppliersChartA"></canvas>
+                            </div>
+                            <table class="data_table_master">
+                                <thead>
+                                    <tr>
+                                        <th>Supplier</th>
+                                        <th class="text-right">Total Spend</th>
+                                        <th class="text-center">PO Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="state.companyA.topSuppliers.slice(0, 5)" t-as="supplier" t-key="supplier.id">
+                                        <tr>
+                                            <td><t t-esc="supplier.name"/></td>
+                                            <td class="text-right"><t t-esc="formatCurrency(supplier.totalSpend)"/></td>
+                                            <td class="text-center"><t t-esc="supplier.poCount"/></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Top Products by Consumption Cycle -->
+                        <div class="chart_section_master">
+                            <div class="chart_header_master">
+                                <i class="fa fa-clock"/> Top Products by Consumption Cycle
+                                <button class="btn btn-sm btn-primary " t-on-click="() => this.onViewConsumptionCycle('companyA')">
+                                    <i class="fa fa-external-link"/> View All
+                                </button>
+                            </div>
+                            <div class="chart_container_master" style="height: 400px;">
+                                <canvas id="consumptionChartA"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Company B Section -->
+                    <div class="company_section company_b">
+                        <div class="company_header">
+                            <t t-esc="state.companyB.name"/>
+                        </div>
+
+                        <!-- KPI Cards -->
+                        <div class="kpi_grid">
+                            <!-- Total PO Value -->
+                            <div class="kpi_card_master bg-primary" style="cursor: pointer;" t-on-click="() => this.onViewTotalPOs('companyB')">
+                                <div class="kpi_label_master">Total PO Value</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="formatCurrency(state.companyB.totalSpend)"/>
+                                </div>
+                            </div>
+
+                            <!-- Total Inventory Cost -->
+                            <div class="kpi_card_master bg-info" style="cursor: pointer;" t-on-click="() => this.onViewTotalInventory('companyB')">
+                                <div class="kpi_label_master">Inventory Cost</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="formatCurrency(state.companyB.inventoryCost)"/>
+                                </div>
+                            </div>
+
+                            <!-- No. of Items -->
+                            <div class="kpi_card_master bg-danger" style="cursor: pointer;" t-on-click="() => this.onViewItemsWithPO('companyB')">
+                                <div class="kpi_label_master">No. of Items</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="formatNumber(state.companyB.itemsCount)"/>
+                                </div>
+                            </div>
+
+                            <!-- GRN Cleared -->
+                            <div class="kpi_card_master bg-success" style="cursor: pointer;" t-on-click="() => this.onViewGRNCleared('companyB')">
+                                <div class="kpi_label_master">GRN Cleared</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="formatNumber(state.companyB.grnCount)"/>
+                                </div>
+                            </div>
+
+                            <!-- Avg Indent to PO -->
+                            <div class="kpi_card_master bg-warning" style="cursor: pointer;" t-on-click="() => this.onViewAvgIndentToPO('companyB')">
+                                <div class="kpi_label_master">Avg. Indent to PO</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="state.companyB.avgIndentToPO"/> days
+                                </div>
+                            </div>
+
+                            <!-- Avg PO to Receipt -->
+                            <div class="kpi_card_master bg-info" style="cursor: pointer;" t-on-click="() => this.onViewAvgPOToReceipt('companyB')">
+                                <div class="kpi_label_master">Avg. PO to Receipt</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="state.companyB.avgPOToReceipt"/> days
+                                </div>
+                            </div>
+
+                            <!-- New Vendors -->
+                            <div class="kpi_card_master bg-danger" style="cursor: pointer;" t-on-click="() => this.onViewNewVendors('companyB')">
+                                <div class="kpi_label_master">New Vendors (Monthly)</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="state.companyB.newVendorsCount"/>
+                                </div>
+                            </div>
+
+                            <!-- Avg Consumption Cycle -->
+                            <div class="kpi_card_master bg-primary" style="cursor: pointer;" t-on-click="() => this.onViewAvgConsumptionCycle('companyB')">
+                                <div class="kpi_label_master">Avg. Consumption Cycle</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="state.companyB.avgConsumptionCycle"/> days
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Monthly Procurement Chart -->
+                        <div class="chart_section_master">
+                            <div class="chart_header_master">
+                                <i class="fa fa-chart-bar"/> Monthly Procurement Status
+                                <button class="btn btn-sm btn-primary " t-on-click="() => this.onViewMonthlyPOStatus('companyB')">
+                                    <i class="fa fa-external-link"/> View All
+                                </button>
+                            </div>
+                            <div class="chart_container_master">
+                                <canvas id="procurementChartB"></canvas>
+                            </div>
+                            <table class="data_table_master">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <th class="text-center">Approved</th>
+                                        <th class="text-center">Pending</th>
+                                        <th class="text-center">Indent</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="state.companyB.monthlyProcurement" t-as="month" t-key="month.month">
+                                        <tr>
+                                            <td><t t-esc="month.month"/></td>
+                                            <td class="text-center">
+                                                <span class="badge_master success"><t t-esc="month.approved"/></span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge_master warning"><t t-esc="month.pending"/></span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge_master info"><t t-esc="month.indent"/></span>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Monthly GRN Chart -->
+                        <div class="chart_section_master">
+                            <div class="chart_header_master">
+                                <i class="fa fa-chart-line"/> Monthly GRN Count
+                                <button class="btn btn-sm btn-primary " t-on-click="() => this.onViewGRNRecords('companyB')">
+                                    <i class="fa fa-external-link"/> View All
+                                </button>
+                            </div>
+                            <div class="chart_container_master">
+                                <canvas id="grnChartB"></canvas>
+                            </div>
+                            <table class="data_table_master">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <th class="text-center">GRN Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="state.companyB.monthlyGRN" t-as="month" t-key="month.month">
+                                        <tr>
+                                            <td><t t-esc="month.month"/></td>
+                                            <td class="text-center"><t t-esc="month.count"/></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Monthly PO Release Chart -->
+                        <div class="chart_section_master">
+                            <div class="chart_header_master">
+                                <i class="fa fa-chart-line"/> Monthly PO Release (Planned vs Released)
+                                <button class="btn btn-sm btn-primary " t-on-click="() => this.onViewPORelease('companyB')">
+                                    <i class="fa fa-external-link"/> View All
+                                </button>
+                            </div>
+                            <div class="chart_container_master">
+                                <canvas id="poReleaseChartB"></canvas>
+                            </div>
+                            <table class="data_table_master">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <th class="text-center">Planned</th>
+                                        <th class="text-center">Released</th>
+<!--                                        <th class="text-center">%</th>-->
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="state.companyB.monthlyPORelease" t-as="month" t-key="month.month">
+                                        <tr>
+                                            <td><t t-esc="month.month"/></td>
+                                            <td class="text-center"><t t-esc="month.planned"/></td>
+                                            <td class="text-center"><t t-esc="month.released"/></td>
+<!--                                            <td class="text-center">-->
+<!--                                                <t t-if="month.planned > 0">-->
+<!--                                                    <span t-att-class="'badge_master ' + (month.released / month.planned >= 0.8 ? 'success' : 'warning')">-->
+<!--                                                        <t t-esc="Math.round((month.released / month.planned) * 100)"/>%-->
+<!--                                                    </span>-->
+<!--                                                </t>-->
+<!--                                                <t t-else="">-</t>-->
+<!--                                            </td>-->
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Monthly PO Evaluation Chart -->
+                        <div class="chart_section_master">
+                            <div class="chart_header_master">
+                                <i class="fa fa-chart-bar"/> Monthly PO Evaluation (Planned vs Released)
+                                <button class="btn btn-sm btn-primary " t-on-click="() => this.onViewPOEvaluation('companyB')">
+                                    <i class="fa fa-external-link"/> View All
+                                </button>
+                            </div>
+                            <div class="chart_container_master">
+                                <canvas id="poEvaluationChartB"></canvas>
+                            </div>
+                            <table class="data_table_master">
+                                <thead>
+                                    <tr>
+                                        <th>Month</th>
+                                        <th class="text-right">Planned Value</th>
+                                        <th class="text-right">Actual Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="state.companyB.monthlyPOEvaluation" t-as="month" t-key="month.month">
+                                        <tr>
+                                            <td><t t-esc="month.month"/></td>
+                                            <td class="text-right"><t t-esc="formatCurrency(month.plannedValue)"/></td>
+                                            <td class="text-right"><t t-esc="formatCurrency(month.actualValue)"/></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Department-wise Inventory Distribution -->
+                        <div class="chart_section_master">
+                            <div class="chart_header_master">
+                                <i class="fa fa-chart-pie"/> Department-wise Inventory Distribution
+                                <button class="btn btn-sm btn-primary " t-on-click="() => this.onViewDepartmentInventory('companyB')">
+                                    <i class="fa fa-external-link"/> View All
+                                </button>
+                            </div>
+                            <div class="chart_container_master" style="height: 300px;">
+                                <canvas id="departmentChartB"></canvas>
+                            </div>
+                            <table class="data_table_master">
+                                <thead>
+                                    <tr>
+                                        <th>Department</th>
+                                        <th class="text-center">Products</th>
+                                        <th class="text-right">Total Quantity</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="state.companyB.departmentInventory" t-as="dept" t-key="dept.id">
+                                        <tr>
+                                            <td><t t-esc="dept.name"/></td>
+                                            <td class="text-center"><t t-esc="dept.productCount"/></td>
+                                            <td class="text-right"><t t-esc="formatNumber(dept.totalQty)"/></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Spend by Commodity/Category -->
+                        <div class="chart_section_master">
+                            <div class="chart_header_master">
+                                <i class="fa fa-chart-pie"/> Spend by Commodity/Category
+                                <button class="btn btn-sm btn-primary " t-on-click="() => this.onViewCommoditySpend('companyB')">
+                                    <i class="fa fa-external-link"/> View All
+                                </button>
+                            </div>
+                            <div class="chart_container_master" style="height: 300px;">
+                                <canvas id="commodityChartB"></canvas>
+                            </div>
+                            <table class="data_table_master">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th class="text-center">Products</th>
+                                        <th class="text-right">Total Spend</th>
+                                        <th class="text-center">% of Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="state.companyB.commoditySpend.slice(0, 10)" t-as="commodity" t-key="commodity.category">
+                                        <tr>
+                                            <td><t t-esc="commodity.category"/></td>
+                                            <td class="text-center"><t t-esc="commodity.productCount"/></td>
+                                            <td class="text-right"><t t-esc="formatCurrency(commodity.totalSpend)"/></td>
+                                            <td class="text-center">
+                                                <t t-set="totalSpend" t-value="state.companyA.commoditySpend.reduce((sum, c) => sum + c.totalSpend, 0)"/>
+                                                <t t-if="totalSpend > 0">
+                                                    <span class="badge_master info">
+                                                        <t t-esc="Math.round((commodity.totalSpend / totalSpend) * 100)"/>%
+                                                    </span>
+                                                </t>
+                                                <t t-else="">-</t>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Top Suppliers -->
+                        <div class="chart_section_master">
+                            <div class="chart_header_master">
+                                <i class="fa fa-users"/> Top Suppliers
+                                <button class="btn btn-sm btn-primary " t-on-click="() => this.onViewTopSuppliers('companyB')">
+                                    <i class="fa fa-external-link"/> View All
+                                </button>
+                            </div>
+                            <div class="chart_container_master" style="height: 300px;">
+                                <canvas id="suppliersChartB"></canvas>
+                            </div>
+                            <table class="data_table_master">
+                                <thead>
+                                    <tr>
+                                        <th>Supplier</th>
+                                        <th class="text-right">Total Spend</th>
+                                        <th class="text-center">PO Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="state.companyB.topSuppliers.slice(0, 5)" t-as="supplier" t-key="supplier.id">
+                                        <tr>
+                                            <td><t t-esc="supplier.name"/></td>
+                                            <td class="text-right"><t t-esc="formatCurrency(supplier.totalSpend)"/></td>
+                                            <td class="text-center"><t t-esc="supplier.poCount"/></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Top Products by Consumption Cycle -->
+                        <div class="chart_section_master">
+                            <div class="chart_header_master">
+                                <i class="fa fa-clock"/> Top Products by Consumption Cycle
+                                <button class="btn btn-sm btn-primary " t-on-click="() => this.onViewConsumptionCycle('companyB')">
+                                    <i class="fa fa-external-link"/> View All
+                                </button>
+                            </div>
+                            <div class="chart_container_master" style="height: 400px;">
+                                <canvas id="consumptionChartB"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

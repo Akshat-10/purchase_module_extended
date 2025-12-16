@@ -1,0 +1,460 @@
+/* Master Comparison Dashboard Styles */
+
+.o_master_comparison_dashboard {
+    background: url('/purchase_dashboard/static/src/img/luxa.org-opacity-changed-._dashboard_bg (1).png') no-repeat center center fixed;
+    min-height: 100vh;
+    background-size: cover;
+    padding: 20px;
+    overflow-x: auto;
+}
+
+/* Header Section */
+.master_dashboard_header {
+    position: relative;
+    z-index: 1;
+    padding: 1.2rem 0;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgb(252 252 252 / 20%);
+    box-shadow: 2px 3px 10px rgb(0 0 0 / 50%);
+    border-radius: 8px !important;
+    margin-bottom: 30px;
+}
+
+.master_dashboard_title {
+    margin-left: 30px;
+    font-size: 24px;
+    font-weight: 500;
+    color: black;
+}
+
+.master_dashboard_title i {
+    margin-right: 10px;
+}
+
+.master_dashboard_filters {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-right: 20px;
+}
+
+.master_dashboard_filters label {
+    margin: 0 8px 0 0;
+    font-weight: 600;
+    color: black;
+}
+
+.master_date_filter {
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: black;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.master_date_filter:focus {
+    background: white;
+    color: #333;
+    outline: none;
+    border-color: #667eea;
+}
+
+.master_dashboard_filters .btn {
+    padding: 5px 16px !important;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: all 0.3s;
+    height: 32px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.o_dashboard_loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+}
+
+.o_dashboard_loading i {
+    color: #667eea;
+}
+
+/* KPI Cards */
+.o_dashboard_kpi_row {
+    margin-bottom: 20px;
+}
+
+.master_dashboard_filters .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #4492bd 0%, #3574a0 100%);
+    border: 1px solid #000000;
+    font-weight: 600;
+    padding: 8px 20px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    color: #ffffff;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+.master_dashboard_filters .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.master_dashboard_filters .btn-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.master_dashboard_filters .btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+/* Loading State */
+.master_loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.master_loading i {
+    color: #667eea;
+    font-size: 3rem;
+}
+
+/* Comparison Container - FIXED */
+.comparison_container {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 20px;
+    margin-bottom: 20px;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Company Section - FIXED */
+.company_section {
+    border-radius: 15px;
+    padding: 20px;
+    border: 1px solid rgb(252 252 252 / 20%);
+    box-shadow: 2px 3px 10px rgb(0 0 0 / 50%);
+    min-width: 0;
+    overflow: hidden;
+}
+
+.company_header {
+    text-align: center;
+    padding: 15px;
+    margin: -20px -20px 20px -20px;
+    border-radius: 5px 5px 0 0;
+    font-size: 1.3rem;
+    font-weight: 500;
+}
+
+.company_section.company_a .company_header {
+    background: linear-gradient(135deg, orange, transparent, green);
+    opacity: 0.8;
+}
+
+.company_section.company_b .company_header {
+    background: linear-gradient(135deg, orange, transparent, green);
+    opacity: 0.8;
+}
+
+/* KPI Grid */
+.kpi_grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.kpi_card_master {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid #000000;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    position: relative;
+    overflow: hidden;
+    opacity: 0.7;
+    min-height: 100px;
+}
+
+.kpi_card_master:hover {
+    transform: translateY(-3px);
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+}
+
+.kpi_label_master {
+    color: #000000;
+    font-size: 0.75rem;
+    margin-bottom: 10px;
+    font-weight: 700 !important;
+    text-shadow: 1px 1px 2px rgba(255,255,255,0.3);
+}
+
+.kpi_value_master {
+    color: #000000;
+    font-weight: 700;
+    font-size: 1.2rem;
+    text-shadow: 2px 2px 4px rgba(255,255,255,0.3);
+}
+
+/* Chart Section */
+.chart_section_master {
+    border-radius: 12px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid #000000 !important;
+    padding: 10px;
+}
+
+.chart_header_master {
+    background: linear-gradient(45deg, orange, transparent, green);
+    box-shadow: inset 0 4px 9px rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    padding: 15px 20px;
+    opacity: 0.8;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: #000000;
+    text-shadow: 1px 1px 2px rgba(255,255,255,0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.chart_header_master .btn {
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+.chart_container_master {
+    height: 250px;
+    position: relative;
+    padding: 15px;
+}
+
+/* Data Table */
+.data_table_master {
+    width: 100%;
+    border: 2px solid #e5e7eb;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    border-bottom: black;
+}
+
+.data_table_master thead {
+    background: #f9fafb;
+    border: 2px solid #e5e7eb;
+}
+
+.data_table_master th {
+    padding: 10px;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.data_table_master td {
+    padding: 10px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #6b7280;
+}
+
+.data_table_master tbody tr:hover {
+    background: #f9fafb;
+}
+
+/* Badges */
+.badge_master {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge_master.success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.badge_master.warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge_master.info {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+/* View All Button */
+.view_all_btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.view_all_btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+
+
+.fa {
+    margin-right: 10px;
+}
+
+/* Responsive Design */
+@media (max-width: 1400px) {
+    .comparison_container {
+        gap: 15px;
+    }
+
+    .kpi_card_master {
+        padding: 15px;
+    }
+
+    .kpi_label_master {
+        font-size: 0.7rem;
+    }
+
+    .kpi_value_master {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 1200px) {
+    .comparison_container {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .o_master_comparison_dashboard {
+        padding: 15px;
+    }
+
+    .master_dashboard_header {
+        padding: 20px;
+    }
+
+    .master_dashboard_title {
+        font-size: 1.5rem;
+    }
+
+    .master_dashboard_filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .master_dashboard_filters .btn {
+        width: 100%;
+    }
+
+    .kpi_grid {
+        grid-template-columns: 1fr;
+    }
+
+    .kpi_value_master {
+        font-size: 1.3rem;
+    }
+}
+
+/* Animation */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.company_section {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.company_section.company_a {
+    animation-delay: 0.1s;
+}
+
+.company_section.company_b {
+    animation-delay: 0.2s;
+}
+
+/* Scrollbar Styling */
+.o_master_comparison_dashboard::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.o_master_comparison_dashboard::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.o_master_comparison_dashboard::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.o_master_comparison_dashboard::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.chart_section_master::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.chart_section_master::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.chart_section_master::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.chart_section_master::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

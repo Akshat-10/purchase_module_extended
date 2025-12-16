@@ -49,6 +49,9 @@ Features:
                 'purchase_dashboard/static/src/js/purchase_dashboard.js',
                 'purchase_dashboard/static/src/css/purchase_dashboard.css',
                 'purchase_dashboard/static/src/xml/purchase_dashboard.xml',
+                'purchase_dashboard/static/src/js/master_comparison_dashboard.js',
+                'purchase_dashboard/static/src/css/master_comparison_dashboard.css',
+                'purchase_dashboard/static/src/xml/master_comparison_dashboard.xml'
             ],
         },
     'demo': [],
