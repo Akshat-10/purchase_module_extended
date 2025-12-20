@@ -1026,73 +1026,149 @@ export class PurchaseDashboard extends Component {
         let buttonElement = null;
 
         try {
-            // Get button element
             buttonElement = ev.target.closest('button');
 
-            // Load html2canvas library if not already loaded
-            if (typeof html2canvas === 'undefined') {
-                await loadJS("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
-            }
-
-            // Show loading indicator
             const originalHTML = buttonElement.innerHTML;
             buttonElement.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Generating...';
             buttonElement.disabled = true;
 
-            // Wait a moment for the UI to update
-            await new Promise(resolve => setTimeout(resolve, 300));
-
-            // Get the dashboard content element
-            const dashboardElement = document.querySelector('.o_com_purchase_dashboard');
-
-            if (!dashboardElement) {
-                throw new Error('Dashboard element not found');
+            if (typeof html2canvas === 'undefined') {
+                console.log('Loading html2canvas library...');
+                await loadJS("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
+                console.log('html2canvas loaded successfully');
             }
 
-            // Generate canvas from the dashboard
-            const canvas = await html2canvas(dashboardElement, {
-                backgroundColor: '#f8f9fa',
-                scale: 2, // Higher quality
-                logging: false,
-                useCORS: true,
-                allowTaint: true,
-                scrollY: -window.scrollY,
-                scrollX: -window.scrollX,
-                windowWidth: dashboardElement.scrollWidth,
-                windowHeight: dashboardElement.scrollHeight,
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            const dashboardElement = document.querySelector('.o_com_purchase_dashboard');
+            console.log('Dashboard element found:', dashboardElement);
+
+            if (!dashboardElement) {
+                throw new Error('Dashboard element not found. Make sure the dashboard is fully loaded.');
+            }
+
+            const computedStyle = window.getComputedStyle(dashboardElement);
+            const backgroundImage = computedStyle.backgroundImage;
+
+            console.log('Background image:', backgroundImage);
+
+            const canvases = dashboardElement.querySelectorAll('canvas');
+            console.log(`Found ${canvases.length} chart canvases`);
+
+            canvases.forEach((canvas, i) => {
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                }
             });
 
-            // Convert canvas to blob
-            canvas.toBlob(async (blob) => {
-                // Create download link
+            const rect = dashboardElement.getBoundingClientRect();
+            const width = dashboardElement.scrollWidth;
+            const height = dashboardElement.scrollHeight;
+            console.log(`Dashboard dimensions: ${width}x${height}`);
+
+            console.log('Starting html2canvas capture...');
+            const canvas = await html2canvas(dashboardElement, {
+                scale: 2,
+                logging: false,
+                useCORS: true,
+                allowTaint: false,
+                scrollY: -window.scrollY,
+                scrollX: -window.scrollX,
+                width: width,
+                height: height,
+                imageTimeout: 0,
+                onclone: (clonedDoc) => {
+                    const clonedElement = clonedDoc.querySelector('.o_com_purchase_dashboard');
+                    if (clonedElement) {
+                        // Force the background image to load by using inline styles
+                        const bgImageUrl = '/purchase_dashboard/static/src/img/luxa.org-opacity-changed-._dashboard_bg (1).png';
+                        clonedElement.style.background = `url('${bgImageUrl}') no-repeat center center fixed`;
+                        clonedElement.style.backgroundSize = 'cover';
+                        clonedElement.style.padding = '20px';
+
+                        // Ensure all content is visible with full opacity
+                        const allElements = clonedElement.querySelectorAll('*');
+                        allElements.forEach(el => {
+                            const elemStyle = window.getComputedStyle(el);
+                            if (elemStyle.opacity !== '1') {
+                                el.style.opacity = '1';
+                            }
+                            if (elemStyle.visibility !== 'visible') {
+                                el.style.visibility = 'visible';
+                            }
+                        });
+                    }
+                }
+            });
+
+            console.log('Canvas created:', canvas.width, 'x', canvas.height);
+
+            const finalCanvas = document.createElement('canvas');
+            finalCanvas.width = canvas.width;
+            finalCanvas.height = canvas.height;
+            const ctx = finalCanvas.getContext('2d');
+
+            const bgImageUrl = '/purchase_dashboard/static/src/img/luxa.org-opacity-changed-._dashboard_bg (1).png';
+            try {
+                const bgImg = new Image();
+                bgImg.crossOrigin = 'anonymous';
+
+                await new Promise((resolve, reject) => {
+                    bgImg.onload = () => {
+                        // Draw background image
+                        ctx.drawImage(bgImg, 0, 0, finalCanvas.width, finalCanvas.height);
+                        // Draw the captured content on top
+                        ctx.drawImage(canvas, 0, 0);
+                        resolve();
+                    };
+                    bgImg.onerror = () => {
+                        console.log('Background image failed to load, using captured canvas as-is');
+                        // Just draw the canvas without background
+                        ctx.drawImage(canvas, 0, 0);
+                        resolve();
+                    };
+                    bgImg.src = bgImageUrl;
+                });
+            } catch (e) {
+                console.log('Error loading background:', e);
+                ctx.drawImage(canvas, 0, 0);
+            }
+
+            finalCanvas.toBlob(async (blob) => {
+                if (!blob) {
+                    throw new Error('Failed to create image blob');
+                }
+
+                console.log('Blob created, size:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
+
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
-
-                // Generate filename with current date
-                const dateStr = new Date().toISOString().split('T')[0];
-                link.download = `Purchase_Dashboard_${dateStr}.png`;
+                const now = new Date();
+                const dateStr = now.toISOString().split('T')[0];
+                const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+                link.download = `Purchase_Dashboard_${dateStr}_${timeStr}.png`;
                 link.href = url;
-
-                // Trigger download
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-
-                // Clean up
                 URL.revokeObjectURL(url);
 
-                // Restore button
+                console.log('Download triggered successfully');
+
                 if (buttonElement) {
                     buttonElement.innerHTML = originalHTML;
                     buttonElement.disabled = false;
                 }
-            }, 'image/png');
+            }, 'image/png', 0.95);
 
         } catch (error) {
             console.error('Error downloading dashboard:', error);
-            alert('Failed to download dashboard. Please try again.');
+            console.error('Error details:', error.message);
 
-            // Restore button on error
+            alert('Failed to download dashboard. Please try again.\n\nError: ' + error.message);
+
             if (buttonElement) {
                 buttonElement.innerHTML = '<i class="fa fa-download"></i> Download';
                 buttonElement.disabled = false;
@@ -1115,9 +1191,7 @@ export class PurchaseDashboard extends Component {
             context: { create: false },
         });
     }
-    // Add these methods to the PurchaseDashboard class
 
-    // KPI Click Handlers
     async onViewTotalPOs() {
         this.action.doAction({
             type: 'ir.actions.act_window',

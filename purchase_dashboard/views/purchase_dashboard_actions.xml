@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <record id="action_master_purchase_dashboard" model="ir.actions.client">
+        <field name="name">Master Dashboard</field>
+        <field name="tag">master_purchase_dashboard</field>
+    </record>
+
+    <menuitem id="menu_master_purchase_dashboard"
+              name="Master Dashboard"
+              action="action_master_purchase_dashboard"
+              parent="purchase.menu_purchase_root"
+              sequence="0"/>
+
     <!-- Client Action for JavaScript Dashboard -->
     <record id="action_purchase_dashboard_js" model="ir.actions.client">
         <field name="name">Purchase Dashboard</field>
@@ -12,5 +23,4 @@
               parent="purchase.menu_purchase_root"
               action="action_purchase_dashboard_js"
               sequence="0"/>
-
 </odoo>

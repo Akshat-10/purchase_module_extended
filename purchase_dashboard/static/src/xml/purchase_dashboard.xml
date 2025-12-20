@@ -356,7 +356,7 @@
                                                     <th>Month</th>
                                                     <th class="text-center">Planned</th>
                                                     <th class="text-center">Released</th>
-                                                    <th class="text-center">%</th>
+<!--                                                    <th class="text-center">%</th>-->
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -365,14 +365,14 @@
                                                         <td><t t-esc="month.month"/></td>
                                                         <td class="text-center"><t t-esc="month.planned"/></td>
                                                         <td class="text-center"><t t-esc="month.released"/></td>
-                                                        <td class="text-center">
-                                                            <t t-if="month.planned > 0">
-                                                                <span t-att-class="'badge badge-' + (month.released / month.planned >= 0.8 ? 'success' : 'warning')">
-                                                                    <t t-esc="Math.round((month.released / month.planned) * 100)"/>%
-                                                                </span>
-                                                            </t>
-                                                            <t t-else="">-</t>
-                                                        </td>
+<!--                                                        <td class="text-center">-->
+<!--                                                            <t t-if="month.planned > 0">-->
+<!--                                                                <span t-att-class="'badge badge-' + (month.released / month.planned >= 0.8 ? 'success' : 'warning')">-->
+<!--                                                                    <t t-esc="Math.round((month.released / month.planned) * 100)"/>%-->
+<!--                                                                </span>-->
+<!--                                                            </t>-->
+<!--                                                            <t t-else="">-</t>-->
+<!--                                                        </td>-->
                                                     </tr>
                                                 </t>
                                             </tbody>
