@@ -14,7 +14,8 @@
                 <t t-set="order_type_label" t-value="'Purchase Order' if o.order_type == 'purchase_order' else 'Work Order' if o.order_type == 'work_order' else 'Service Order' if o.order_type == 'service_order' else 'AMC' if o.order_type == 'amc' else 'Purchase Order'"/>
                 <strong t-if="o.state in ['draft', 'sent', 'to approve']"><t t-esc="order_type_label"/> # </strong>
                 <strong t-if="o.state in ['purchase', 'done', 'cancel']"><t t-esc="order_type_label"/> # </strong>
-                <span t-field="o.name"/>
+                <span t-if="o.po_confirmed_number" t-field="o.po_confirmed_number"/>
+                <span t-else="" t-field="o.name"/>
             </div>
         </xpath>
 
@@ -37,7 +38,11 @@
         <!-- Hide information block and add only Order date -->
         <xpath expr="//div[@id='informations']" position="replace">
             <div id="informations" class="row" style="font-size: 0.9em;">
-                <div t-if="o.state in ['purchase','done'] and o.date_approve" class="col-3 bm-2">
+                <div t-if="o.state in ['purchase','done'] and o.purchase_order_date" class="col-3 bm-2">
+                    <strong>Order Date:</strong>
+                    <p t-field="o.purchase_order_date" class="m-0"/>
+                </div>
+                <div t-elif="o.state in ['purchase','done'] and o.date_approve" class="col-3 bm-2">
                     <strong>Order Date:</strong>
                     <p t-field="o.date_approve" t-options="{'date_only': 'true'}" class="m-0"/>
                 </div>

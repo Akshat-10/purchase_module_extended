@@ -7,7 +7,7 @@
     "author": "Akshat Gupta",
     'license': 'LGPL-3',    
     'website': 'https://github.com/Akshat-10',
-    'depends': ['base', 'web', 'purchase', 'digital_signature'],
+    'depends': ['base', 'web', 'purchase', 'digital_signature', 'german_default_data'],
     'data': [
         'views/report_layout_inherit.xml',
         'views/res_company_view.xml',
