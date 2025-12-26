@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <!-- Add Bill Details to delivery slip report -->
+    <template id="report_delivery_document_inherit_bill_details"
+              inherit_id="stock.report_delivery_document">
+
+        <!-- Add Bill Details next to Shipping Date -->
+        <xpath expr="//div[@id='informations']" position="replace">
+            <div id="informations" class="report-wrapping-flexbox clearfix row mb-4">
+                <!-- Order/Source Document -->
+                <div t-if="o.origin" class="col col-3 mw-100 mb-2" name="div_origin">
+                    <strong>Order</strong>
+                    <div t-field="o.origin" class="m-0">S0001</div>
+                </div>
+
+                <!-- Shipping Date -->
+                <div t-if="o.state" class="col col-3 mw-100 mb-2" name="div_sched_date">
+                    <strong>Shipping Date</strong>
+                    <div t-if="o.state == 'done'" t-field="o.date_done" class="m-0"/>
+                    <div t-else="" t-field="o.scheduled_date" class="m-0"/>
+                </div>
+
+                <!-- Bill No -->
+                <div t-if="o.bill_no" class="col col-3 mw-100 mb-2" name="div_bill_no">
+                    <strong>Bill No.</strong>
+                    <div t-field="o.bill_no" class="m-0"/>
+                </div>
+
+                <!-- Bill Date -->
+                <div t-if="o.bill_date" class="col col-3 mw-100 mb-2" name="div_bill_date">
+                    <strong>Bill Date</strong>
+                    <div t-field="o.bill_date" class="m-0"/>
+                </div>
+
+                <!-- Vehicle No -->
+                <div t-if="o.vehicle_no" class="col col-3 mw-100 mb-2" name="div_vehicle_no">
+                    <strong>Vehicle No.</strong>
+                    <div t-field="o.vehicle_no" class="m-0"/>
+                </div>
+            </div>
+        </xpath>
+
+    </template>
+
+    <!-- Separate template to fix ordered quantity in aggregated lines -->
+    <template id="stock_report_delivery_aggregated_move_lines_qty_fix"
+              inherit_id="stock.stock_report_delivery_aggregated_move_lines">
+
+        <!-- Format the ordered quantity properly -->
+        <xpath expr="//td[@name='move_line_aggregated_qty_ordered']" position="replace">
+            <td class="text-center" name="move_line_aggregated_qty_ordered">
+                <span t-esc="aggregated_lines[line]['qty_ordered']"
+                    t-options="{'widget': 'float', 'decimal_precision': 'Product Unit of Measure'}"/>
+                <span t-esc="aggregated_lines[line]['product_uom'].name"/>
+                <span t-if="aggregated_lines[line]['packaging'].name">
+                    (<span t-out="aggregated_lines[line]['packaging_qty']" t-options='{"widget": "integer"}'/>
+                    <span t-out="aggregated_lines[line]['packaging'].name"/>)
+                </span>
+            </td>
+        </xpath>
+
+    </template>
+</odoo>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_picking_form_inherit_next_transfer" model="ir.ui.view">
+        <field name="name">stock.picking.form.inherit.next.transfer</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='do_print_picking'][@invisible=&quot;state != 'assigned'&quot;]" position="after">
+                <button name="action_next_transfer"
+                        string="Next Transfer"
+                        type="object"
+                        class="oe_highlight"
+                        invisible="not show_next_pickings"
+                        groups="base.group_user"
+                        data-hotkey="n"/>
+            </xpath>
+
+            <xpath expr="//field[@name='move_ids_without_package']//field[@name='product_uom']" position="after">
+                <field name="purchase_line_unit_price"
+                       string="Unit Price"
+                       optional="show"
+                       readonly="1"/>
+            </xpath>
+
+            <xpath expr="//group//field[@name='location_dest_id']" position="after">
+                <field name="bill_no" />
+                <field name="bill_date"/>
+                <field name="vehicle_no" placeholder="e.g. GJ-01-AB-1234"/>
+            </xpath>
+
+            <xpath expr="//field[@name='origin']" position="after">
+                <field name="supplier_invoice_value" readonly="1" invisible="1"/>
+                <field name="price_matches_po" string="Price Matches PO" readonly="1"/>
+                <field name="price_mismatch_reason"
+                       placeholder="Enter reason for price mismatch"
+                       invisible="price_matches_po"
+                       required="not price_matches_po"/>
+            </xpath>
+        </field>
+    </record>
+
+    <template id="report_delivery_document_inherit_spacing" inherit_id="stock.report_delivery_document">
+        <xpath expr="//div[@id='informations']" position="attributes">
+            <attribute name="class">report-wrapping-flexbox clearfix row mb-1</attribute>
+        </xpath>
+
+        <xpath expr="//div[@id='informations']/following-sibling::div[@class='oe_structure'][1]" position="replace"/>
+    </template>
+</odoo>
