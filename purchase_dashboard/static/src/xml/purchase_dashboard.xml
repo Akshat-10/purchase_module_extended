@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <templates xml:space="preserve">
     <!-- Main Dashboard Template -->
     <t t-name="purchase_dashboard.Dashboard">
@@ -32,6 +33,9 @@
                                 <button class="btn btn-success ml-2" t-on-click="onDownloadDashboard">
                                     <i class="fa fa-download"/> Download
                                 </button>
+                                <button class="btn btn-warning ml-2" t-on-click="onOpenTargetsMenu">
+                                    <i class="fa fa-bullseye"/> Targets
+                                </button>   
                             </div>
                         </div>
                     </div>
@@ -66,7 +70,7 @@
                                                 </div>
                                             </div>
                                             <div class="col-auto">
-                                                <i class="fas fa-dollar-sign fa-2x text-gray-300"/>
+                                                <i class="fa fa-rupee fa-2x text-gray-300"/>
                                             </div>
                                         </div>
                                     </div>
@@ -306,28 +310,56 @@
                         <div class="col-xl-6 col-lg-6 mb-4">
                             <div class="card shadow">
                                 <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                                    <h6 class="m-0 font-weight-bold text-primary">Monthly GRN Cleared</h6>
-                                    <button class="btn btn-sm btn-primary" t-on-click="onViewGRNRecords">
+                                    <h6 class="m-0 font-weight-bold text-primary">Monthly PO Evaluation (Planned vs Released)</h6>
+                                    <button class="btn btn-sm btn-primary" t-on-click="onViewPOEvaluation">
                                         <i class="fa fa-external-link"/> View All
                                     </button>
                                 </div>
                                 <div class="card-body">
-                                    <div class="o_chart_container" style="height: 300px;">
-                                        <canvas id="monthlyGRNChart"></canvas>
+                                    <div class="o_chart_scroll_container" style="overflow-x: auto; overflow-y: hidden;">
+                                        <div class="o_chart_container" style="height: 300px;">
+                                            <canvas id="monthlyValuesChart"></canvas>
+                                        </div>
                                     </div>
+                                    <!-- <div class="o_chart_container" style="height: 300px;">
+                                        <canvas id="monthlyValuesChart"></canvas>
+                                    </div> -->
                                     <div class="table-responsive mt-4">
                                         <table class="table table-sm table-bordered">
                                             <thead>
                                                 <tr>
                                                     <th>Month</th>
-                                                    <th class="text-center">GRN Count</th>
+                                                    <th class="text-center">Target</th>
+                                                    <th class="text-center">RFQ</th>
+                                                    <th class="text-center">PO Released</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <t t-foreach="state.monthlyGRN" t-as="month" t-key="month.month">
-                                                    <tr>
+                                                <t t-foreach="state.monthlyPOSummary" t-as="month" t-key="month.month">
+                                                    <tr>    
                                                         <td><t t-esc="month.month"/></td>
-                                                        <td class="text-center"><t t-esc="month.count"/></td>
+                                                      <td class="text-center">
+                                                            <div style="position: relative; display: inline-flex; align-items: center; gap: 2px;">
+                                                                <span style="font-weight: 700;">₹</span>
+                                                                <input type="number" 
+                                                                    class="form-control form-control-sm text-center target-input"
+                                                                    t-att-data-month="month.month"
+                                                                    t-att-placeholder="'0'"
+                                                                    t-att-value="state.monthlyTargets and state.monthlyTargets[month.month] or ''"
+                                                                    t-on-change="onTargetInputChange"
+                                                                    style="width: 80px; padding: 4px 8px; color: black; font-weight: 700;"/>
+                                                                <button class="btn btn-sm btn-info" 
+                                                                        t-on-click="onOpenTargetForm"
+                                                                        t-att-data-month="month.month"
+                                                                        type="button"
+                                                                        title="Open Target Form in Full Form"
+                                                                        style="padding: 4px 8px; margin: 0;">
+                                                                    <i class="fa fa-pencil"/> 
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                        <td class="text-center"><t t-esc="month.plannedDisplay"/></td>
+                                                        <td class="text-center"><t t-esc="month.releasedDisplay"/></td>
                                                     </tr>
                                                 </t>
                                             </tbody>
@@ -340,39 +372,36 @@
                         <div class="col-xl-6 col-lg-6 mb-4">
                             <div class="card shadow">
                                 <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                                    <h6 class="m-0 font-weight-bold text-primary">Monthly PO Release (Planned vs Released)</h6>
-                                    <button class="btn btn-sm btn-primary" t-on-click="onViewPORelease">
+                                    <h6 class="m-0 font-weight-bold text-primary">Monthly GRN Cleared Graph</h6>
+                                    <button class="btn btn-sm btn-primary" t-on-click="onViewGRNRecords">
                                         <i class="fa fa-external-link"/> View All
                                     </button>
                                 </div>
                                 <div class="card-body">
-                                    <div class="o_chart_container" style="height: 300px;">
-                                        <canvas id="monthlyPOChart"></canvas>
+                                    <div class="o_chart_scroll_container" style="overflow-x: auto; overflow-y: hidden;">
+                                        <div class="o_chart_container" style="height: 300px;">
+                                            <canvas id="monthlyGRNChart"></canvas>
+                                        </div>
                                     </div>
+                                    <!-- <div class="o_chart_container" style="height: 300px;">
+                                        <canvas id="monthlyGRNChart"></canvas>
+                                    </div> -->
                                     <div class="table-responsive mt-4">
                                         <table class="table table-sm table-bordered">
                                             <thead>
                                                 <tr>
                                                     <th>Month</th>
-                                                    <th class="text-center">Planned</th>
-                                                    <th class="text-center">Released</th>
-<!--                                                    <th class="text-center">%</th>-->
+                                                    <th class="text-center">GRN Count</th>
+                                                    <th class="text-right">Total Cost</th> 
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <t t-foreach="state.monthlyReleasePO" t-as="month" t-key="month.month">
+                                                <t t-foreach="state.monthlyGRN" t-as="month" t-key="month.month">
                                                     <tr>
                                                         <td><t t-esc="month.month"/></td>
-                                                        <td class="text-center"><t t-esc="month.planned"/></td>
-                                                        <td class="text-center"><t t-esc="month.released"/></td>
-<!--                                                        <td class="text-center">-->
-<!--                                                            <t t-if="month.planned > 0">-->
-<!--                                                                <span t-att-class="'badge badge-' + (month.released / month.planned >= 0.8 ? 'success' : 'warning')">-->
-<!--                                                                    <t t-esc="Math.round((month.released / month.planned) * 100)"/>%-->
-<!--                                                                </span>-->
-<!--                                                            </t>-->
-<!--                                                            <t t-else="">-</t>-->
-<!--                                                        </td>-->
+                                                        <td class="text-center"><t t-esc="month.count"/></td>
+                                                        <td class="text-right"><t t-esc="formatCurrency(month.totalCost)"/></td>
+                                                        <!-- <td class="text-right"><t t-esc="month.formattedTotalCost"/></td> -->
                                                     </tr>
                                                 </t>
                                             </tbody>
@@ -381,6 +410,8 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    <div class="pdf-page-break" style="page-break-before: always; break-before: page; height: 0; margin: 0; padding: 0;">
                     </div>
 
                     <!-- Department and Commodity Row -->
@@ -397,13 +428,22 @@
                                     <div class="o_chart_container" style="height: 300px;">
                                         <canvas id="departmentInventoryChart"></canvas>
                                     </div>
-                                    <div class="table-responsive mt-4">
+                                    <!-- ✅ GRAND TOTAL TOP RIGHT -->
+                                    <div style="position: absolute; top: 100px; right: 50px; padding: 8px 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                        <div style="font-size: 0.75rem; color: #000; font-weight: 500; text-transform: uppercase;">Total Cost</div>
+                                        <div style="font-size: 1.25rem; font-weight: 500; color: #000;">
+                                            <t t-esc="formatCurrency(state.departmentInventory.reduce((sum, d) => sum + d.totalCost, 0))"/>
+                                        </div>
+                                    </div>
+                                    <!-- 🔥 TABLE - VERTICAL SCROLL (max 5 rows visible) -->
+                                    <div class="table-responsive mt-4" style="max-height: 220px; overflow-y: auto;">
                                         <table class="table table-sm table-bordered">
-                                            <thead>
+                                            <thead style="position: sticky; top: 0; background: white; z-index: 1;">
                                                 <tr>
                                                     <th>Department</th>
                                                     <th class="text-center">Products</th>
                                                     <th class="text-right">Total Quantity</th>
+                                                    <th class="text-right">Total Cost</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -412,6 +452,9 @@
                                                         <td><t t-esc="dept.name"/></td>
                                                         <td class="text-center"><t t-esc="dept.productCount"/></td>
                                                         <td class="text-right"><t t-esc="formatNumber(dept.totalQty)"/></td>
+                                                        <td class="text-right"><t t-esc="formatCurrency(dept.totalCost)"/></td>
+                                                        <!-- <td class="text-right"><t t-esc="dept.formattedTotalCost"/> -->
+                                                        <!-- <td class="text-right"><strong><t t-esc="formatCurrency(dept.totalCost)"/></td> -->
                                                     </tr>
                                                 </t>
                                             </tbody>
@@ -424,7 +467,7 @@
                         <div class="col-xl-6 col-lg-6 mb-4">
                             <div class="card shadow">
                                 <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                                    <h6 class="m-0 font-weight-bold text-primary">Spend by Commodity/Category</h6>
+                                    <h6 class="m-0 font-weight-bold text-primary">Spend by Commodity / Category</h6>
                                     <button class="btn btn-sm btn-primary" t-on-click="onViewCommoditySpend">
                                         <i class="fa fa-external-link"/> View All
                                     </button>
@@ -433,9 +476,17 @@
                                     <div class="o_chart_container" style="height: 300px;">
                                         <canvas id="commodityChart"></canvas>
                                     </div>
-                                    <div class="table-responsive mt-4">
+                                      <!-- ✅ GRAND TOTAL TOP RIGHT -->
+                                    <div style="position: absolute; top: 100px; right: 50px; padding: 8px 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                        <div style="font-size: 0.75rem; color: #000; font-weight: 500; text-transform: uppercase;">Total Spend</div>
+                                        <div style="font-size: 1.25rem; font-weight: 500; color: #000;">
+                                            <t t-esc="formatCurrency(state.commoditySpend.reduce((sum, c) => sum + c.totalSpend, 0))"/>
+                                        </div>
+                                    </div>
+                                    <!-- 🔥 TABLE - VERTICAL SCROLL (max 5 rows visible) -->
+                                    <div class="table-responsive mt-4" style="max-height: 220px; overflow-y: auto;">
                                         <table class="table table-sm table-bordered">
-                                            <thead>
+                                            <thead style="position: sticky; top: 0; background: white; z-index: 1;">
                                                 <tr>
                                                     <th>Category</th>
                                                     <th class="text-center">Products</th>
@@ -502,39 +553,40 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="col-xl-6 col-lg-6 mb-4">
                             <div class="card shadow">
                                 <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                                    <h6 class="m-0 font-weight-bold text-primary">Monthly PO Evaluation (Planned vs Released)</h6>
-                                    <button class="btn btn-sm btn-primary" t-on-click="onViewPOEvaluation">
+                                    <h6 class="m-0 font-weight-bold text-primary">Top Purchasers</h6>
+                                    <button class="btn btn-sm btn-primary" t-on-click="onViewTopPurchasers">
                                         <i class="fa fa-external-link"/> View All
                                     </button>
                                 </div>
                                 <div class="card-body">
+                                    <!-- Chart -->
                                     <div class="o_chart_container" style="height: 300px;">
-                                        <canvas id="monthlyValuesChart"></canvas>
+                                        <canvas id="topPurchasersChart"></canvas>
                                     </div>
-                                    <div class="table-responsive mt-4">
+                                    <!-- Table with Scroll -->
+                                    <!-- <div class="table-responsive mt-4" style="max-height: 250px; overflow-y: auto;">
                                         <table class="table table-sm table-bordered">
-                                            <thead>
+                                            <thead style="position: sticky; top: 0; background: white; z-index: 1;">
                                                 <tr>
-                                                    <th>Month</th>
-                                                    <th class="text-right">Planned Value</th>
-                                                    <th class="text-right">Actual Value</th>
+                                                    <th>Purchaser</th>
+                                                    <th class="text-right">Total Spend</th>
+                                                    <th class="text-center">PO Count</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <t t-foreach="state.monthlyPOValues" t-as="month" t-key="month.month">
+                                                <t t-foreach="state.topPurchasers" t-as="purchaser" t-key="purchaser.id">
                                                     <tr>
-                                                        <td><t t-esc="month.month"/></td>
-                                                        <td class="text-right"><t t-esc="formatCurrency(month.plannedValue)"/></td>
-                                                        <td class="text-right"><t t-esc="formatCurrency(month.actualValue)"/></td>
+                                                        <td><t t-esc="purchaser.name"/></td>
+                                                        <td class="text-right"><t t-esc="formatCurrency(purchaser.totalSpend)"/></td>
+                                                        <td class="text-center"><t t-esc="purchaser.poCount"/></td>
                                                     </tr>
                                                 </t>
                                             </tbody>
                                         </table>
-                                    </div>
+                                    </div> -->
                                 </div>
                             </div>
                         </div>

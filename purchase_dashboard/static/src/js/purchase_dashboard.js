@@ -20,8 +20,11 @@ export class PurchaseDashboard extends Component {
             itemsWithPO: 0,
             monthlyReleasePO: [],
             monthlyPOValues: [],
+            monthlyPOSummary: [], 
             monthlyPOStatus: [],
             monthlyGRN: [],
+            monthlyTargets: {}, 
+            topPurchasers: [],
             grnClearedCount: 0,
             notMoved30: 0,
             notMoved45: 0,
@@ -49,10 +52,14 @@ export class PurchaseDashboard extends Component {
             monthlyGRN: null,
             commodity: null,
             consumption: null,
+            topPurchasers: null,
             departmentInventory: null,
         };
 
         onWillStart(async () => {
+            // Load targets pehle
+            await this.loadMonthlyTargets();
+            // Then load dashboard data
             await this.loadDashboardData();
         });
 
@@ -84,6 +91,7 @@ export class PurchaseDashboard extends Component {
                 this.loadGRNMetrics(),
                 this.loadTimingMetrics(),
                 this.loadDepartmentInventory(),
+                this.loadTopPurchasers(),
             ]);
         } catch (error) {
             console.error("Error loading dashboard data:", error);
@@ -162,6 +170,293 @@ export class PurchaseDashboard extends Component {
         }
     }
 
+    async loadTopPurchasers() {
+        try {
+            const topPurchasersData = await this.orm.readGroup(
+                "purchase.order",
+                [
+                    ['state', 'in', ['purchase', 'done']],
+                    ['date_approve', '>=', this.state.dateFrom],
+                    ['date_approve', '<=', this.state.dateTo],
+                    ['user_id', '!=', false],
+                ],
+                ['user_id', 'amount_total:sum'],
+                ['user_id'],
+                { limit: 10, orderby: 'amount_total desc' }
+            );
+
+            this.state.topPurchasers = topPurchasersData.map(item => ({
+                id: item.user_id[0],
+                name: item.user_id[1],
+                totalSpend: item.amount_total,
+                poCount: item.user_id_count,
+            }));
+
+            console.log("Top Purchasers loaded:", this.state.topPurchasers.length);
+        } catch (error) {
+            console.error("Error loading top purchasers data:", error);
+        }
+    }
+
+    async onTargetInputChange(ev) {
+        const month = ev.target.dataset.month;
+        const value = ev.target.value;
+        
+        console.log(`📝 Updating target for ${month}: ${value}`);
+        
+        try {
+            // Backend call - purchase.target model ko use karo
+            const result = await this.orm.call(
+                'purchase.target',
+                'set_target',
+                [month, parseFloat(value || 0)]
+            );
+            
+            if (result.success) {
+                console.log('✅ Target saved:', month, value);
+                
+                // State update
+                if (!this.state.monthlyTargets) {
+                    this.state.monthlyTargets = {};
+                }
+                this.state.monthlyTargets[month] = parseFloat(value || 0);
+                
+                // Chart ko refresh karo
+                this.refreshMonthlyValuesChart();
+                
+            } else {
+                alert('❌ ' + result.message);
+            }
+            
+        } catch (error) {
+            console.error('❌ Error updating target:', error);
+            alert('Failed to update target: ' + error.message);
+        }
+    }
+
+
+    refreshMonthlyValuesChart() {
+        console.log('📊 Refreshing Monthly Values Chart...');
+        
+        // Purana chart destroy karo
+        if (this.charts.monthlyValues) {
+            try {
+                this.charts.monthlyValues.destroy();
+            } catch (e) {
+                console.log('Chart destroy log:', e.message);
+            }
+        }
+        
+        // Naya chart banao target ke saath
+        this.createMonthlyValuesChartWithTarget();
+    }
+
+    // Replace sirf ye function - createMonthlyValuesChartWithTarget()
+    createMonthlyValuesChartWithTarget() {
+        const canvas = document.getElementById('monthlyValuesChart');
+        if (!canvas) {
+            console.log("Canvas 'monthlyValuesChart' not found");
+            return;
+        }
+
+        if (this.state.monthlyPOValues.length === 0) {
+            console.log("No monthly values data for chart");
+            return;
+        }
+
+        const ctx = canvas.getContext('2d');
+
+        console.log("Creating monthly PO Evaluation chart WITH TARGET COMPARISON...");
+        console.log("Targets:", this.state.monthlyTargets);
+        console.log("Monthly Values:", this.state.monthlyPOValues);
+
+        // Purana chart destroy karo
+        if (this.charts.monthlyValues) {
+            try {
+                this.charts.monthlyValues.destroy();
+            } catch (e) {
+                console.log('Chart destroy log:', e.message);
+            }
+        }
+
+        // Data prepare karo
+        const months = this.state.monthlyPOValues.map(m => m.month);
+        
+        // PO Released values (actualValue)
+        const poReleasedValues = this.state.monthlyPOValues.map(m => m.actualValue);
+        
+        // Target values
+        const targetValues = this.state.monthlyPOValues.map(m => {
+            const targetKey = m.month;
+            return this.state.monthlyTargets[targetKey] || 0;
+        });
+
+        // ✅ CALCULATE: 
+        // Agar PO Released > Target => Red portion = PO Released - Target
+        // Agar PO Released <= Target => Sab Green, koi Red nahi
+        const overTargetValues = poReleasedValues.map((released, idx) => {
+            const target = targetValues[idx];
+            if (released > target) {
+                return released - target; // Red portion (jitna zyada hai)
+            }
+            return 0;
+        });
+
+        // Green portion = min(PO Released, Target)
+        const poReleasedGreenValues = poReleasedValues.map((released, idx) => {
+            const target = targetValues[idx];
+            if (released > target) {
+                return target; // Sirf target tak green
+            }
+            return released; // Sab green agar target se kam hai
+        });
+
+        console.log('✅ PO Released Green Values:', poReleasedGreenValues);
+        console.log('✅ Over Target Values:', overTargetValues);
+
+        this.charts.monthlyValues = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        label: 'PO Released (Within Target)',
+                        data: poReleasedGreenValues,
+                        backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        yAxisID: 'y',
+                        stack: 'poReleased',
+                    },
+                    {
+                        label: 'PO Released (Over Target)',
+                        data: overTargetValues,
+                        backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                        borderColor: 'rgba(239, 68, 68, 1)',
+                        borderWidth: 1,
+                        borderRadius: [6, 6, 0, 0], // Top corners only
+                        yAxisID: 'y',
+                        stack: 'poReleased',
+                    },
+                    {
+                        label: 'RFQ',
+                        data: this.state.monthlyPOValues.map(m => m.plannedValue),
+                        backgroundColor: 'rgba(245, 158, 11, 0.8)',
+                        borderColor: 'rgba(245, 158, 11, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        yAxisID: 'y',
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 15,
+                            font: {
+                                size: 12,
+                                weight: '600'
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const label = context.dataset.label || '';
+                                const value = context.parsed.y;
+                                
+                                if (label.includes('PO Released') || label.includes('RFQ')) {
+                                    return label + ': ' + this.formatCurrency(value);
+                                }
+                                return label + ': ' + value;
+                            },
+                            afterLabel: (context) => {
+                                // Agar "Within Target" ho to target value dikhao
+                                if (context.dataset.label === 'PO Released (Within Target)') {
+                                    const monthIndex = context.dataIndex;
+                                    const targetValue = targetValues[monthIndex] || 0;
+                                    const poReleased = poReleasedValues[monthIndex] || 0;
+                                    
+                                    if (poReleased <= targetValue) {
+                                        const saved = targetValue - poReleased;
+                                        const savedPercent = targetValue > 0 
+                                            ? ((saved / targetValue) * 100).toFixed(1) 
+                                            : 0;
+                                        return `Target: ${this.formatCurrency(targetValue)}\nRemaining: ${this.formatCurrency(saved)} (${savedPercent}%)`;
+                                    } else {
+                                        return `Target: ${this.formatCurrency(targetValue)}`;
+                                    }
+                                }
+                                
+                                // Agar "Over Target" ho to overage dikhao
+                                if (context.dataset.label === 'PO Released (Over Target)') {
+                                    const monthIndex = context.dataIndex;
+                                    const targetValue = targetValues[monthIndex] || 0;
+                                    const overValue = overTargetValues[monthIndex] || 0;
+                                    const overPercent = targetValue > 0 
+                                        ? ((overValue / targetValue) * 100).toFixed(1) 
+                                        : 0;
+                                    return `Over Target: ${this.formatCurrency(overValue)} (+${overPercent}%)`;
+                                }
+                                
+                                return '';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        position: 'left',
+                        stacked: 'poReleased-group', // Stack ke liye
+                        ticks: {
+                            color: '#000000',
+                            callback: (value) => this.formatCurrency(value)
+                        },
+                        title: {
+                            display: true,
+                            text: 'Amount (₹)',
+                            color: '#000000',
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#000000'
+                        },
+                    }
+                }
+            }
+        });
+
+        console.log("✅ Monthly PO Evaluation chart with target comparison created");
+    }
+
+    async loadMonthlyTargets() {
+        try {
+            console.log('=== LOADING MONTHLY TARGETS FROM DB ===');
+            
+            // Backend se targets lao
+            const targets = await this.orm.call(
+                'purchase.target',
+                'get_all_targets',
+                []
+            );
+            
+            this.state.monthlyTargets = targets || {};
+            console.log('✅ Monthly targets loaded:', this.state.monthlyTargets);
+            
+        } catch (error) {
+            console.error('❌ Error loading targets:', error);
+            this.state.monthlyTargets = {};
+        }
+    }
+
     async loadPOMetrics() {
         try {
             const productCount = await this.orm.searchCount(
@@ -201,10 +496,82 @@ export class PurchaseDashboard extends Component {
 
             // Load monthly PO status (approved, pending) and indents
             await this.loadMonthlyPOStatus();
-
+            
+            await this.loadMonthlyPOSummary();
+            
             console.log("PO Metrics loaded");
         } catch (error) {
             console.error("Error loading PO metrics:", error);
+        }
+    }
+
+    async loadMonthlyPOSummary() {
+        try {
+            console.log('=== LOADING MONTHLY PO SUMMARY ===');
+            
+            // Direct query - ek hi call mein count aur value dono
+            const summaryData = await this.orm.readGroup(
+                "purchase.order",
+                [
+                    ['date_order', '>=', this.state.dateFrom],
+                    ['date_order', '<=', this.state.dateTo],
+                ],
+                ['__count', 'amount_total:sum'],
+                ['date_order:month', 'state'],
+                { lazy: false }
+            );
+
+            console.log('Summary Data from DB:', summaryData);
+
+            // Process data month-wise
+            const monthlyDict = {};
+
+            summaryData.forEach(item => {
+                const month = item['date_order:month'];
+                const state = item.state;
+                const count = item.__count || 0;
+                const value = item.amount_total || 0;
+
+                if (!month) return;
+
+                if (!monthlyDict[month]) {
+                    monthlyDict[month] = {
+                        month: month,
+                        plannedCount: 0,
+                        plannedValue: 0,
+                        releasedCount: 0,
+                        actualValue: 0,
+                    };
+                }
+
+                if (state === 'draft') {
+                    monthlyDict[month].plannedCount += count;
+                    monthlyDict[month].plannedValue += value;
+                } else if (state === 'purchase' || state === 'done') {
+                    monthlyDict[month].releasedCount += count;
+                    monthlyDict[month].actualValue += value;
+                }
+            });
+
+            // Convert to array with formatted display strings
+            this.state.monthlyPOSummary = Object.values(monthlyDict)
+                .sort((a, b) => new Date(a.month + '-01') - new Date(b.month + '-01'))
+                .map(data => ({
+                    month: data.month,
+                    plannedCount: data.plannedCount,
+                    releasedCount: data.releasedCount,
+                    plannedValue: data.plannedValue,
+                    actualValue: data.actualValue,
+                    // Display format: "Count (₹ Value)"
+                    plannedDisplay: `${data.plannedCount} (${this.formatCurrency(data.plannedValue)})`,
+                    releasedDisplay: `${data.releasedCount} (${this.formatCurrency(data.actualValue)})`,
+                }));
+
+            console.log('Final Monthly PO Summary:', this.state.monthlyPOSummary);
+
+        } catch (error) {
+            console.error('Error loading monthly PO summary:', error);
+            this.state.monthlyPOSummary = [];
         }
     }
 
@@ -276,7 +643,7 @@ export class PurchaseDashboard extends Component {
             });
 
             this.state.monthlyPOStatus = Object.values(monthlyStatus)
-                .sort((a, b) => a.month.localeCompare(b.month));
+                .sort((a, b) => new Date(a.month + '-01') - new Date(b.month + '-01'));
 
             console.log("Monthly PO status loaded");
         } catch (error) {
@@ -287,11 +654,6 @@ export class PurchaseDashboard extends Component {
 
     async loadGRNMetrics() {
         try {
-            // Get current month's GRN count
-//            const monthStart = new Date();
-//            monthStart.setDate(1);
-//            const monthStartStr = monthStart.toISOString().split('T')[0];
-
             const currentMonthGRN = await this.orm.searchCount(
                 "stock.picking",
                 [
@@ -304,8 +666,8 @@ export class PurchaseDashboard extends Component {
 
             this.state.grnClearedCount = currentMonthGRN;
 
-            // Get monthly GRN data for chart
-            const monthlyGRNData = await this.orm.readGroup(
+            // Get all GRN pickings with date_done
+            const grnPickings = await this.orm.searchRead(
                 "stock.picking",
                 [
                     ['picking_type_code', '=', 'incoming'],
@@ -313,60 +675,128 @@ export class PurchaseDashboard extends Component {
                     ['date_done', '>=', this.state.dateFrom],
                     ['date_done', '<=', this.state.dateTo],
                 ],
-                ['__count'],
-                ['date_done:month'],
-                { lazy: false }
+                ['id', 'date_done', 'move_ids_without_package'],
+                { limit: 5000 }
             );
 
-            // Get GRN IDs to calculate value
-            const grnIds = await this.orm.search(
-                "stock.picking",
-                [
-                    ['picking_type_code', '=', 'incoming'],
-                    ['state', '=', 'done'],
-                    ['date_done', '>=', this.state.dateFrom],
-                    ['date_done', '<=', this.state.dateTo],
-                ],
-            );
+            console.log('GRN Pickings found:', grnPickings.length);
 
-            // Get move lines to calculate total value
-            const moveLines = await this.orm.searchRead(
-                "stock.move",
-                [
-                    ['picking_id', 'in', grnIds],
-                    ['state', '=', 'done'],
-                ],
-                ['picking_id', 'product_uom_qty', 'price_unit', 'date']
-            );
+            if (grnPickings.length === 0) {
+                this.state.monthlyGRN = [];
+                return;
+            }
 
-            // Calculate monthly values
-            const monthlyValues = {};
-            moveLines.forEach(move => {
-                const date = new Date(move.date);
-                const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                const value = (move.product_uom_qty || 0) * (move.price_unit || 0);
-
-                if (!monthlyValues[month]) {
-                    monthlyValues[month] = 0;
+            // Get all move IDs from these GRN pickings
+            const allMoveIds = [];
+            grnPickings.forEach(picking => {
+                if (picking.move_ids_without_package && picking.move_ids_without_package.length > 0) {
+                    allMoveIds.push(...picking.move_ids_without_package);
                 }
-                monthlyValues[month] += value;
             });
 
-            this.state.monthlyGRN = monthlyGRNData.map(item => ({
-                month: item['date_done:month'],
-                count: item.__count || 0,
-                value: monthlyValues[item['date_done:month']] || 0,
-            })).sort((a, b) => a.month.localeCompare(b.month));
+            console.log('Total moves in GRN:', allMoveIds.length);
 
-            console.log("GRN metrics loaded");
+            // Get move details with product_uom_qty (isko multiply karenge product ke standard_price se)
+            const moves = await this.orm.searchRead(
+                "stock.move",
+                [
+                    ['id', 'in', allMoveIds],
+                    ['state', '=', 'done'],
+                ],
+                ['picking_id', 'product_id', 'product_uom_qty'],
+                { limit: 10000 }
+            );
+
+            console.log('Moves found:', moves.length);
+
+            // Get unique product IDs to fetch their standard_price
+            const productIds = [...new Set(moves.map(m => m.product_id[0]))];
+            console.log('Unique products in GRN:', productIds.length);
+
+            const products = await this.orm.searchRead(
+                "product.product",
+                [['id', 'in', productIds]],
+                ['id', 'standard_price']
+            );
+
+            // Create product price map
+            const productPriceMap = {};
+            products.forEach(p => {
+                productPriceMap[p.id] = p.standard_price || 0;
+            });
+
+            console.log('Product prices loaded:', products.length);
+
+            // Create picking -> date map (with month key in YYYY-MM format)
+            const pickingDateMap = {};
+            grnPickings.forEach(picking => {
+                if (picking.date_done) {
+                    const pickingDate = new Date(picking.date_done);
+                    const month = `${pickingDate.getFullYear()}-${String(pickingDate.getMonth() + 1).padStart(2, '0')}`;
+                    pickingDateMap[picking.id] = month;
+                }
+            });
+
+            console.log('Pickings mapped:', Object.keys(pickingDateMap).length);
+
+            // Aggregate by month - COUNT + TOTAL COST
+            const monthlyDict = {};
+
+            moves.forEach(move => {
+                const pickingId = move.picking_id[0];
+                const month = pickingDateMap[pickingId];
+
+                if (!month) return;
+
+                const productId = move.product_id[0];
+                const qty = move.product_uom_qty || 0;
+                const price = productPriceMap[productId] || 0; // ✅ Product ka standard_price
+                const moveCost = qty * price;
+
+                if (!monthlyDict[month]) {
+                    monthlyDict[month] = {
+                        month: month,
+                        count: 0,
+                        totalCost: 0,
+                    };
+                }
+
+                monthlyDict[month].count += 1;
+                monthlyDict[month].totalCost += moveCost;
+
+                console.log(`📦 Product: ${move.product_id[1]} | Qty: ${qty} | Price: ${price} | Cost: ${moveCost} | Month: ${month}`);
+            });
+
+            console.log('✅ Monthly aggregation complete');
+
+            // Convert YYYY-MM to display format AFTER sorting
+            this.state.monthlyGRN = Object.values(monthlyDict)
+                .sort((a, b) => new Date(a.month + '-01') - new Date(b.month + '-01'))
+                .map(item => {
+                    const [year, monthNum] = item.month.split('-');
+                    const date = new Date(year, parseInt(monthNum) - 1);
+                    const monthName = date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                    
+                    return {
+                        month: monthName,
+                        count: item.count,
+                        totalCost: item.totalCost,
+                    };
+                });
+
+            console.log('✅ Monthly GRN with costs:', this.state.monthlyGRN);
+
         } catch (error) {
             console.error("Error loading GRN metrics:", error);
             this.state.grnClearedCount = 0;
             this.state.monthlyGRN = [];
         }
     }
-        // ALTERNATIVE METHOD - Try this if the previous one doesn't work
+
+    // ALTERNATIVE METHOD - Try this if the previous one doesn't work
     // This uses a different approach by querying from Purchase Orders side
+
+    // SIRF YE FUNCTION MODIFY KARO - loadGRNMetrics()
 
     async loadTimingMetrics() {
         try {
@@ -713,85 +1143,160 @@ export class PurchaseDashboard extends Component {
 
     async loadConsumptionMetrics() {
         try {
-            const poLines = await this.orm.searchRead(
-                "purchase.order.line",
+            console.log('=== LOADING CONSUMPTION METRICS ===');
+            
+            // Step 1: Get all stock moves
+            const moves = await this.orm.searchRead(
+                "stock.move",
                 [
-                    ['order_id.state', 'in', ['purchase', 'done']],
-                    ['order_id.date_order', '>=', this.state.dateFrom],
-                    ['order_id.date_order', '<=', this.state.dateTo],
                     ['product_id', '!=', false],
+                    ['state', '=', 'done'],
                 ],
-                ['product_id', 'date_planned', 'order_id']
+                ['product_id', 'picking_id', 'product_uom_qty', 'product_uom'],
+                { limit: 10000 }
             );
 
-            if (poLines.length === 0) {
-                this.state.avgConsumptionCycle = 0;
+            console.log('✅ Stock moves found:', moves.length);
+
+            if (moves.length === 0) {
+                console.warn('No moves found');
                 this.state.consumptionByProduct = [];
                 return;
             }
 
-            const poIds = [...new Set(poLines.map(line => line.order_id[0]))];
-            const purchaseOrders = await this.orm.read(
-                "purchase.order",
-                poIds,
-                ['date_order', 'date_approve']
-            );
-
-            const poDateMap = {};
-            purchaseOrders.forEach(po => {
-                poDateMap[po.id] = po.date_order || po.date_approve;
-            });
-
-            const productCycles = {};
-            let totalDays = 0;
-            let totalCount = 0;
-
-            for (const line of poLines) {
-                const productId = line.product_id[0];
-                const productName = line.product_id[1];
-                const plannedDate = line.date_planned;
-                const orderDate = poDateMap[line.order_id[0]];
-
-                if (plannedDate && orderDate) {
-                    const planned = new Date(plannedDate);
-                    const ordered = new Date(orderDate);
-                    const days = Math.floor((planned - ordered) / (1000 * 60 * 60 * 24));
-
-                    if (days > 0 && days < 365) {
-                        if (!productCycles[productId]) {
-                            productCycles[productId] = {
-                                productName: productName,
-                                totalDays: 0,
-                                count: 0,
-                            };
-                        }
-                        productCycles[productId].totalDays += days;
-                        productCycles[productId].count++;
-                        totalDays += days;
-                        totalCount++;
-                    }
-                }
+            // Step 2: Get unique picking IDs
+            const pickingIds = [...new Set(moves.map(m => m.picking_id[0]))];
+            console.log('✅ Unique pickings:', pickingIds.length);
+            
+            if (pickingIds.length === 0) {
+                this.state.consumptionByProduct = [];
+                return;
             }
 
-            this.state.avgConsumptionCycle = totalCount > 0
-                ? (totalDays / totalCount).toFixed(2)
-                : 0;
+            // Step 3: Get picking data with department
+            const pickings = await this.orm.searchRead(
+                "stock.picking",
+                [['id', 'in', pickingIds]],
+                ['id', 'issue_department_id'],
+                { limit: 10000 }
+            );
 
-            this.state.consumptionByProduct = Object.values(productCycles)
-                .map(p => ({
-                    productName: p.productName,
-                    avgDays: (p.totalDays / p.count).toFixed(2),
-                }))
-                .sort((a, b) => parseFloat(b.avgDays) - parseFloat(a.avgDays))
+            console.log('✅ Pickings fetched:', pickings.length);
+
+            // Step 4: Create picking -> department map
+            const pickingDeptMap = {};
+            pickings.forEach(p => {
+                if (p.issue_department_id) {
+                    pickingDeptMap[p.id] = {
+                        deptId: p.issue_department_id[0],
+                        deptName: p.issue_department_id[1],
+                    };
+                }
+            });
+
+            console.log('✅ Picking to dept map created');
+
+            // Step 5: Get all product IDs and their UOM
+            const productIds = [...new Set(moves.map(m => m.product_id[0]))];
+            console.log('✅ Total unique products:', productIds.length);
+
+            const products = await this.orm.searchRead(
+                "product.product",
+                [['id', 'in', productIds]],
+                ['id', 'name', 'qty_available', 'uom_id'],
+                { limit: 10000 }
+            );
+
+            console.log('✅ Products fetched:', products.length);
+
+            // Create product info map
+            const productInfoMap = {};
+            products.forEach(p => {
+                productInfoMap[p.id] = {
+                    name: p.name,
+                    onHand: p.qty_available || 0,
+                    uom: p.uom_id && p.uom_id[1] ? p.uom_id[1] : 'Unit',
+                };
+            });
+
+            console.log('✅ Product info map created');
+
+            // Step 6: Aggregate moves by product and department
+            const productStats = {};
+
+            moves.forEach(move => {
+                const productId = move.product_id[0];
+                const productName = move.product_id[1];
+                const pickingId = move.picking_id[0];
+                const dept = pickingDeptMap[pickingId];
+                const qty = move.product_uom_qty || 0;
+
+                if (!dept) {
+                    return;
+                }
+
+                // Get UOM
+                let uom = 'Unit';
+                if (productInfoMap[productId] && productInfoMap[productId].uom) {
+                    uom = productInfoMap[productId].uom;
+                } else if (move.product_uom && move.product_uom[1]) {
+                    uom = move.product_uom[1];
+                }
+
+                if (!productStats[productId]) {
+                    productStats[productId] = {
+                        productId: productId,
+                        productName: productName,
+                        usageCount: 0,
+                        totalQty: 0,
+                        uom: uom,
+                        onHand: productInfoMap[productId]?.onHand || 0,
+                        departments: {},
+                    };
+                }
+
+                productStats[productId].usageCount += 1;
+                productStats[productId].totalQty += qty;
+
+                const deptKey = `${dept.deptId}`;
+                if (!productStats[productId].departments[deptKey]) {
+                    productStats[productId].departments[deptKey] = {
+                        deptId: dept.deptId,
+                        deptName: dept.deptName,
+                        count: 0,
+                        qty: 0,
+                    };
+                }
+                productStats[productId].departments[deptKey].count += 1;
+                productStats[productId].departments[deptKey].qty += qty;
+            });
+
+            console.log('✅ Aggregation complete');
+
+            // Step 7: Convert to array and sort
+            const productsArray = Object.values(productStats)
+                .sort((a, b) => b.usageCount - a.usageCount)
                 .slice(0, 20);
 
-            console.log("Consumption metrics loaded");
+            this.state.consumptionByProduct = productsArray;
+
+            console.log('✅ FINAL DATA - Total products:', productsArray.length);
+            if (productsArray.length > 0) {
+                console.log('Top product:', {
+                    name: productsArray[0].productName,
+                    usage: productsArray[0].usageCount,
+                    totalQty: productsArray[0].totalQty,
+                    uom: productsArray[0].uom,
+                });
+            }
+
         } catch (error) {
-            console.error("Error loading consumption metrics:", error);
-            this.state.avgConsumptionCycle = 0;
+            console.error("❌ Error loading consumption metrics:", error);
+            console.error('Stack:', error.stack);
             this.state.consumptionByProduct = [];
         }
     }
+
 
     async loadCommodityData() {
         try {
@@ -883,11 +1388,29 @@ export class PurchaseDashboard extends Component {
                     ['id', 'in', allMoveIds],
                     ['state', '=', 'done'],
                 ],
-                ['product_id', 'picking_id', 'product_uom_qty', 'price_unit'],
+                ['product_id', 'picking_id', 'product_uom_qty'],
                 { limit: 10000 }
             );
 
             console.log('Moves found:', moves.length);
+
+            // Get unique product IDs
+            const productIds = [...new Set(moves.map(m => m.product_id[0]))];
+
+            // Get product prices (standard_price is the cost)
+            const products = await this.orm.searchRead(
+                "product.product",
+                [['id', 'in', productIds]],
+                ['id', 'standard_price']
+            );
+
+            // Create product price map
+            const productPriceMap = {};
+            products.forEach(p => {
+                productPriceMap[p.id] = p.standard_price || 0;
+            });
+
+            console.log('Product prices loaded:', products.length);
 
             // Map picking to department
             const pickingDeptMap = {};
@@ -906,6 +1429,10 @@ export class PurchaseDashboard extends Component {
 
                 const deptId = dept.deptId;
                 const deptName = dept.deptName;
+                const productId = move.product_id[0];
+                const qty = move.product_uom_qty || 0;
+                const price = productPriceMap[productId] || 0;
+                const cost = qty * price;
 
                 if (!deptData[deptId]) {
                     deptData[deptId] = {
@@ -913,32 +1440,35 @@ export class PurchaseDashboard extends Component {
                         name: deptName,
                         productCount: 0,
                         totalQty: 0,
-                        totalValue: 0,
+                        totalCost: 0,
                         products: new Set(),
                     };
                 }
 
-                deptData[deptId].products.add(move.product_id[0]);
-                deptData[deptId].totalQty += move.product_uom_qty || 0;
-                deptData[deptId].totalValue += (move.product_uom_qty || 0) * (move.price_unit || 0);
+                deptData[deptId].products.add(productId);
+                deptData[deptId].totalQty += qty;
+                deptData[deptId].totalCost += cost;
             });
 
             // Convert to array
             this.state.departmentInventory = Object.values(deptData)
                 .map(d => ({
-                    ...d,
+                    id: d.id,
+                    name: d.name,
                     productCount: d.products.size,
+                    totalQty: d.totalQty,
+                    totalCost: d.totalCost,
                 }))
-                .sort((a, b) => b.totalValue - a.totalValue);
+                .sort((a, b) => b.totalCost - a.totalCost);
 
             console.log('Department inventory loaded:', this.state.departmentInventory.length);
-            console.log('Department data:', this.state.departmentInventory);
+            console.log('Department data with costs:', this.state.departmentInventory);
         } catch (error) {
             console.error("Error loading department inventory:", error);
             this.state.departmentInventory = [];
         }
     }
-
+    
     processMonthlyData(data) {
         const monthly = {};
 
@@ -958,7 +1488,7 @@ export class PurchaseDashboard extends Component {
             }
         });
 
-        return Object.values(monthly).sort((a, b) => a.month.localeCompare(b.month));
+        return Object.values(monthly).sort((a, b) => new Date(a.month + '-01') - new Date(b.month + '-01'));
     }
 
     processMonthlyValues(data) {
@@ -980,7 +1510,8 @@ export class PurchaseDashboard extends Component {
             }
         });
 
-        return Object.values(monthly).sort((a, b) => a.month.localeCompare(b.month));
+        console.log('Processed Monthly Values:', monthly); 
+        return Object.values(monthly).sort((a, b) => new Date(a.month + '-01') - new Date(b.month + '-01'));
     }
 
     formatCurrency(value) {
@@ -1006,6 +1537,9 @@ export class PurchaseDashboard extends Component {
         // Destroy all existing charts first
         this.destroyAllCharts();
 
+        // Reload targets FIRST
+        await this.loadMonthlyTargets();
+
         // Reload data
         await this.loadDashboardData();
 
@@ -1022,152 +1556,478 @@ export class PurchaseDashboard extends Component {
         await this.onRefreshDashboard();
     }
 
+    // async onDownloadDashboard(ev) {
+    //     let buttonElement = null;
+
+    //     try {
+    //         buttonElement = ev.target.closest('button');
+
+    //         const originalHTML = buttonElement.innerHTML;
+    //         buttonElement.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Generating...';
+    //         buttonElement.disabled = true;
+
+    //         if (typeof html2canvas === 'undefined') {
+    //             console.log('Loading html2canvas library...');
+    //             await loadJS("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
+    //             console.log('html2canvas loaded successfully');
+    //         }
+
+    //         await new Promise(resolve => setTimeout(resolve, 2000));
+
+    //         const dashboardElement = document.querySelector('.o_com_purchase_dashboard');
+    //         console.log('Dashboard element found:', dashboardElement);
+
+    //         if (!dashboardElement) {
+    //             throw new Error('Dashboard element not found. Make sure the dashboard is fully loaded.');
+    //         }
+
+    //         const computedStyle = window.getComputedStyle(dashboardElement);
+    //         const backgroundImage = computedStyle.backgroundImage;
+
+    //         console.log('Background image:', backgroundImage);
+
+    //         const canvases = dashboardElement.querySelectorAll('canvas');
+    //         console.log(`Found ${canvases.length} chart canvases`);
+
+    //         canvases.forEach((canvas, i) => {
+    //             const ctx = canvas.getContext('2d');
+    //             if (ctx) {
+    //                 ctx.imageSmoothingEnabled = true;
+    //                 ctx.imageSmoothingQuality = 'high';
+    //             }
+    //         });
+
+    //         const rect = dashboardElement.getBoundingClientRect();
+    //         const width = dashboardElement.scrollWidth;
+    //         const height = dashboardElement.scrollHeight;
+    //         console.log(`Dashboard dimensions: ${width}x${height}`);
+
+    //         console.log('Starting html2canvas capture...');
+    //         const canvas = await html2canvas(dashboardElement, {
+    //             scale: 2,
+    //             logging: false,
+    //             useCORS: true,
+    //             allowTaint: false,
+    //             scrollY: -window.scrollY,
+    //             scrollX: -window.scrollX,
+    //             width: width,
+    //             height: height,
+    //             imageTimeout: 0,
+    //             onclone: (clonedDoc) => {
+    //                 const clonedElement = clonedDoc.querySelector('.o_com_purchase_dashboard');
+    //                 if (clonedElement) {
+    //                     // Force the background image to load by using inline styles
+    //                     const bgImageUrl = '/purchase_dashboard/static/src/img/luxa.org-opacity-changed-._dashboard_bg (1).png';
+    //                     clonedElement.style.background = `url('${bgImageUrl}') no-repeat center center fixed`;
+    //                     clonedElement.style.backgroundSize = 'cover';
+    //                     clonedElement.style.padding = '20px';
+
+    //                     // Ensure all content is visible with full opacity
+    //                     const allElements = clonedElement.querySelectorAll('*');
+    //                     allElements.forEach(el => {
+    //                         const elemStyle = window.getComputedStyle(el);
+    //                         if (elemStyle.opacity !== '1') {
+    //                             el.style.opacity = '1';
+    //                         }
+    //                         if (elemStyle.visibility !== 'visible') {
+    //                             el.style.visibility = 'visible';
+    //                         }
+    //                     });
+    //                 }
+    //             }
+    //         });
+
+    //         console.log('Canvas created:', canvas.width, 'x', canvas.height);
+
+    //         const finalCanvas = document.createElement('canvas');
+    //         finalCanvas.width = canvas.width;
+    //         finalCanvas.height = canvas.height;
+    //         const ctx = finalCanvas.getContext('2d');
+
+    //         const bgImageUrl = '/purchase_dashboard/static/src/img/luxa.org-opacity-changed-._dashboard_bg (1).png';
+    //         try {
+    //             const bgImg = new Image();
+    //             bgImg.crossOrigin = 'anonymous';
+
+    //             await new Promise((resolve, reject) => {
+    //                 bgImg.onload = () => {
+    //                     // Draw background image
+    //                     ctx.drawImage(bgImg, 0, 0, finalCanvas.width, finalCanvas.height);
+    //                     // Draw the captured content on top
+    //                     ctx.drawImage(canvas, 0, 0);
+    //                     resolve();
+    //                 };
+    //                 bgImg.onerror = () => {
+    //                     console.log('Background image failed to load, using captured canvas as-is');
+    //                     // Just draw the canvas without background
+    //                     ctx.drawImage(canvas, 0, 0);
+    //                     resolve();
+    //                 };
+    //                 bgImg.src = bgImageUrl;
+    //             });
+
+    //         } catch (e) {
+    //             console.log('Error loading background:', e);
+    //             ctx.drawImage(canvas, 0, 0);
+    //         }
+            
+    //         // -------- SIMPLE A4 PDF -------
+    //         const { jsPDF } = window.jspdf;
+
+    //         // A4 Portrait
+    //         const pdf = new jsPDF('p', 'mm', 'a4');
+
+    //         const pageWidth = pdf.internal.pageSize.getWidth();
+    //         const pageHeight = pdf.internal.pageSize.getHeight();
+
+    //         // Canvas ko image
+    //         const imgData = finalCanvas.toDataURL('image/png');
+
+    //         // Image ko A4 ke hisab se scale
+    //         const imgWidth = pageWidth;
+    //         const imgHeight = (finalCanvas.height * imgWidth) / finalCanvas.width;
+
+    //         // Center me rakhne ke liye (optional)
+    //         const x = 0;
+    //         let y = 0;
+
+    //         // Agar height A4 se badi hai to page by page print kar dega
+    //         let heightLeft = imgHeight;
+
+    //         pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+    //         heightLeft -= pageHeight;
+
+    //         while (heightLeft > 0) {
+    //             y = heightLeft - imgHeight;
+    //             pdf.addPage();
+    //             pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+    //             heightLeft -= pageHeight;
+    //         }
+
+    //         // File name
+    //         const now = new Date();
+    //         const dateStr = now.toISOString().split('T')[0];
+    //         const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+
+    //         pdf.save(`Purchase_Dashboard_${dateStr}_${timeStr}.pdf`);
+
+    //         if (buttonElement) {
+    //             buttonElement.innerHTML = originalHTML;
+    //             buttonElement.disabled = false;
+    //         }
+    //         // ---------------------------------------------------------------
+
+    //         // finalCanvas.toBlob(async (blob) => {
+    //         //     if (!blob) {
+    //         //         throw new Error('Failed to create image blob');
+    //         //     }
+
+    //         //     console.log('Blob created, size:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
+
+    //         //     const url = URL.createObjectURL(blob);
+    //         //     const link = document.createElement('a');
+    //         //     const now = new Date();
+    //         //     const dateStr = now.toISOString().split('T')[0];
+    //         //     const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+    //         //     link.download = `Purchase_Dashboard_${dateStr}_${timeStr}.png`;
+    //         //     link.href = url;
+    //         //     document.body.appendChild(link);
+    //         //     link.click();
+    //         //     document.body.removeChild(link);
+    //         //     URL.revokeObjectURL(url);
+
+    //         //     console.log('Download triggered successfully');
+
+    //         //     if (buttonElement) {
+    //         //         buttonElement.innerHTML = originalHTML;
+    //         //         buttonElement.disabled = false;
+    //         //     }
+    //         // }, 'image/png', 0.95);
+
+    //     } catch (error) {
+    //         console.error('Error downloading dashboard:', error);
+    //         console.error('Error details:', error.message);
+
+    //         alert('Failed to download dashboard. Please try again.\n\nError: ' + error.message);
+
+    //         if (buttonElement) {
+    //             buttonElement.innerHTML = '<i class="fa fa-download"></i> Download';
+    //             buttonElement.disabled = false;
+    //         }
+    //     }
+    // }
+
     async onDownloadDashboard(ev) {
         let buttonElement = null;
 
         try {
-            buttonElement = ev.target.closest('button');
-
+            /* ===============================
+            BUTTON UI
+            =============================== */
+            buttonElement = ev.target.closest("button");
             const originalHTML = buttonElement.innerHTML;
             buttonElement.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Generating...';
             buttonElement.disabled = true;
 
-            if (typeof html2canvas === 'undefined') {
-                console.log('Loading html2canvas library...');
+            /* ===============================
+            LOAD LIBRARIES
+            =============================== */
+            if (typeof html2canvas === "undefined") {
                 await loadJS("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
-                console.log('html2canvas loaded successfully');
+                await new Promise(r => setTimeout(r, 500));
             }
 
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            const dashboardElement = document.querySelector('.o_com_purchase_dashboard');
-            console.log('Dashboard element found:', dashboardElement);
-
-            if (!dashboardElement) {
-                throw new Error('Dashboard element not found. Make sure the dashboard is fully loaded.');
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                throw new Error("jsPDF not loaded");
             }
 
-            const computedStyle = window.getComputedStyle(dashboardElement);
-            const backgroundImage = computedStyle.backgroundImage;
+            const { jsPDF } = window.jspdf;
 
-            console.log('Background image:', backgroundImage);
+            /* ===============================
+            DASHBOARD ELEMENT
+            =============================== */
+            const dashboardContent =
+                document.querySelector(".o_com_purchase_dashboard") ||
+                document.querySelector(".o_action_manager .o_content");
 
-            const canvases = dashboardElement.querySelectorAll('canvas');
-            console.log(`Found ${canvases.length} chart canvases`);
+            if (!dashboardContent) {
+                throw new Error("Dashboard content not found");
+            }
 
-            canvases.forEach((canvas, i) => {
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.imageSmoothingEnabled = true;
-                    ctx.imageSmoothingQuality = 'high';
-                }
-            });
+            /* =====================================================
+            GET REAL PAGE BREAK PIXEL POSITION (KEY FIX)
+            ===================================================== */
+            const pageBreakEl = dashboardContent.querySelector(".pdf-page-break");
+            let pageBreakPixel = null;
 
-            const rect = dashboardElement.getBoundingClientRect();
-            const width = dashboardElement.scrollWidth;
-            const height = dashboardElement.scrollHeight;
-            console.log(`Dashboard dimensions: ${width}x${height}`);
+            if (pageBreakEl) {
+                const dashboardRect = dashboardContent.getBoundingClientRect();
+                const breakRect = pageBreakEl.getBoundingClientRect();
 
-            console.log('Starting html2canvas capture...');
-            const canvas = await html2canvas(dashboardElement, {
-                scale: 2,
-                logging: false,
-                useCORS: true,
-                allowTaint: false,
-                scrollY: -window.scrollY,
-                scrollX: -window.scrollX,
-                width: width,
-                height: height,
-                imageTimeout: 0,
-                onclone: (clonedDoc) => {
-                    const clonedElement = clonedDoc.querySelector('.o_com_purchase_dashboard');
-                    if (clonedElement) {
-                        // Force the background image to load by using inline styles
-                        const bgImageUrl = '/purchase_dashboard/static/src/img/luxa.org-opacity-changed-._dashboard_bg (1).png';
-                        clonedElement.style.background = `url('${bgImageUrl}') no-repeat center center fixed`;
-                        clonedElement.style.backgroundSize = 'cover';
-                        clonedElement.style.padding = '20px';
+                pageBreakPixel =
+                    (breakRect.top - dashboardRect.top) +
+                    dashboardContent.scrollTop;
 
-                        // Ensure all content is visible with full opacity
-                        const allElements = clonedElement.querySelectorAll('*');
-                        allElements.forEach(el => {
-                            const elemStyle = window.getComputedStyle(el);
-                            if (elemStyle.opacity !== '1') {
-                                el.style.opacity = '1';
-                            }
-                            if (elemStyle.visibility !== 'visible') {
-                                el.style.visibility = 'visible';
-                            }
-                        });
-                    }
-                }
-            });
+                console.log("✅ Page break pixel:", pageBreakPixel);
+            } else {
+                console.warn("⚠️ Page break marker not found");
+            }
 
-            console.log('Canvas created:', canvas.width, 'x', canvas.height);
+            /* ===============================
+            FREEZE CHARTS
+            =============================== */
+            const chartStates = [];
 
-            const finalCanvas = document.createElement('canvas');
-            finalCanvas.width = canvas.width;
-            finalCanvas.height = canvas.height;
-            const ctx = finalCanvas.getContext('2d');
+            if (window.Chart && Chart.instances) {
+                Object.values(Chart.instances).forEach(chart => {
+                    chartStates.push({
+                        chart,
+                        animation: chart.options.animation,
+                        responsive: chart.options.responsive
+                    });
 
-            const bgImageUrl = '/purchase_dashboard/static/src/img/luxa.org-opacity-changed-._dashboard_bg (1).png';
-            try {
-                const bgImg = new Image();
-                bgImg.crossOrigin = 'anonymous';
-
-                await new Promise((resolve, reject) => {
-                    bgImg.onload = () => {
-                        // Draw background image
-                        ctx.drawImage(bgImg, 0, 0, finalCanvas.width, finalCanvas.height);
-                        // Draw the captured content on top
-                        ctx.drawImage(canvas, 0, 0);
-                        resolve();
-                    };
-                    bgImg.onerror = () => {
-                        console.log('Background image failed to load, using captured canvas as-is');
-                        // Just draw the canvas without background
-                        ctx.drawImage(canvas, 0, 0);
-                        resolve();
-                    };
-                    bgImg.src = bgImageUrl;
+                    chart.options.animation = false;
+                    chart.options.responsive = false;
+                    chart.update("none");
                 });
-            } catch (e) {
-                console.log('Error loading background:', e);
-                ctx.drawImage(canvas, 0, 0);
             }
 
-            finalCanvas.toBlob(async (blob) => {
-                if (!blob) {
-                    throw new Error('Failed to create image blob');
+            await new Promise(r => setTimeout(r, 600));
+
+            /* ===============================
+            CAPTURE DASHBOARD
+            =============================== */
+            const SCALE = 2.5;
+
+            const canvas = await html2canvas(dashboardContent, {
+                scale: SCALE,
+                useCORS: true,
+                backgroundColor: "#ffffff",
+                scrollX: 0,
+                scrollY: 0,
+                windowWidth: dashboardContent.scrollWidth,
+                windowHeight: dashboardContent.scrollHeight,
+                onclone: (clonedDoc) => {
+                    const clonedDashboard =
+                        clonedDoc.querySelector(".o_com_purchase_dashboard") ||
+                        clonedDoc.querySelector(".o_action_manager .o_content");
+
+                    if (!clonedDashboard) return;
+
+                    /* Hide page break marker */
+                    const marker = clonedDashboard.querySelector(".pdf-page-break");
+                    if (marker) marker.style.display = "none";
+
+                    /* ===============================
+                    DARKEN CHART CONTAINERS
+                    =============================== */
+                    const canvases = clonedDashboard.querySelectorAll("canvas");
+                    canvases.forEach(canvas => {
+                        canvas.style.opacity = "1";
+
+                        const parent = canvas.parentElement;
+                        if (parent) {
+                            parent.style.backgroundColor = "#ffffff";
+                            parent.style.border = "1px solid #bfbfbf";
+                            parent.style.borderRadius = "8px";
+                            parent.style.boxShadow = "0 3px 10px rgba(0,0,0,0.25)";
+                        }
+                    });
+
+                    /* ===============================
+                    DARKEN HEADERS / TITLES
+                    =============================== */
+                    clonedDashboard.querySelectorAll(
+                        ".card-header, h4, h5, .o_dashboard_header"
+                    ).forEach(el => {
+                        el.style.color = "#222222";
+                        el.style.fontWeight = "700";
+                    });
+
+                    /* ===============================
+                    DARKEN TABLES
+                    =============================== */
+                    clonedDashboard.querySelectorAll("table").forEach(table => {
+                        table.style.backgroundColor = "#ffffff";
+                        table.style.border = "1px solid #c0c0c0";
+
+                        table.querySelectorAll("th").forEach(th => {
+                            th.style.backgroundColor = "#eeeeee";
+                            th.style.color = "#222222";
+                            th.style.fontWeight = "700";
+                        });
+
+                        table.querySelectorAll("td").forEach(td => {
+                            td.style.color = "#333333";
+                        });
+                    });
+
+                    /* ===============================
+                    FORCE LIGHT TEXT → DARK
+                    =============================== */
+                    clonedDashboard.querySelectorAll("*").forEach(el => {
+                        const color = window.getComputedStyle(el).color;
+                        if (
+                            color.includes("rgb(180") ||
+                            color.includes("rgb(190") ||
+                            color.includes("rgb(200")
+                        ) {
+                            el.style.color = "#333333";
+                        }
+                    });
                 }
+            });
 
-                console.log('Blob created, size:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
+            /* ===============================
+            RESTORE CHARTS
+            =============================== */
+            chartStates.forEach(s => {
+                s.chart.options.animation = s.animation;
+                s.chart.options.responsive = s.responsive;
+                s.chart.update("none");
+            });
 
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                const now = new Date();
-                const dateStr = now.toISOString().split('T')[0];
-                const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
-                link.download = `Purchase_Dashboard_${dateStr}_${timeStr}.png`;
-                link.href = url;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
+            /* =====================================================
+            CALCULATE EXACT CANVAS BREAK (NO GUESS)
+            ===================================================== */
+            let breakY;
 
-                console.log('Download triggered successfully');
+            if (pageBreakPixel !== null) {
+                const scaleFactor = canvas.height / dashboardContent.scrollHeight;
+                breakY = Math.round(pageBreakPixel * scaleFactor);
+            } else {
+                breakY = Math.round(canvas.height / 2);
+            }
 
-                if (buttonElement) {
-                    buttonElement.innerHTML = originalHTML;
-                    buttonElement.disabled = false;
-                }
-            }, 'image/png', 0.95);
+            // Safety clamp
+            breakY = Math.max(1, Math.min(breakY, canvas.height - 1));
 
-        } catch (error) {
-            console.error('Error downloading dashboard:', error);
-            console.error('Error details:', error.message);
+            console.log("📌 Canvas breakY:", breakY, "/", canvas.height);
 
-            alert('Failed to download dashboard. Please try again.\n\nError: ' + error.message);
+            /* ===============================
+            PAGE 1 CANVAS
+            =============================== */
+            const page1Canvas = document.createElement("canvas");
+            page1Canvas.width = canvas.width;
+            page1Canvas.height = breakY;
+
+            const ctx1 = page1Canvas.getContext("2d");
+            ctx1.fillStyle = "#ffffff";
+            ctx1.fillRect(0, 0, page1Canvas.width, page1Canvas.height);
+            ctx1.drawImage(
+                canvas,
+                0, 0,
+                canvas.width, breakY,
+                0, 0,
+                canvas.width, breakY
+            );
+
+            /* ===============================
+            PAGE 2 CANVAS
+            =============================== */
+            const page2Canvas = document.createElement("canvas");
+            page2Canvas.width = canvas.width;
+            page2Canvas.height = canvas.height - breakY;
+
+            const ctx2 = page2Canvas.getContext("2d");
+            ctx2.fillStyle = "#ffffff";
+            ctx2.fillRect(0, 0, page2Canvas.width, page2Canvas.height);
+            ctx2.drawImage(
+                canvas,
+                0, breakY,
+                canvas.width, canvas.height - breakY,
+                0, 0,
+                canvas.width, canvas.height - breakY
+            );
+
+            /* ===============================
+            CREATE PDF
+            =============================== */
+            const pdf = new jsPDF("p", "mm", "a4");
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const margin = 10;
+            const usableWidth = pageWidth - margin * 2;
+
+            // Page 1
+            const h1 = (page1Canvas.height * usableWidth) / page1Canvas.width;
+            pdf.addImage(
+                page1Canvas.toDataURL("image/jpeg", 1.0),
+                "JPEG",
+                margin,
+                margin,
+                usableWidth,
+                h1
+            );
+
+            // Page 2
+            pdf.addPage();
+            const h2 = (page2Canvas.height * usableWidth) / page2Canvas.width;
+            pdf.addImage(
+                page2Canvas.toDataURL("image/jpeg", 1.0),
+                "JPEG",
+                margin,
+                margin,
+                usableWidth,
+                h2
+            );
+
+            /* ===============================
+            SAVE PDF
+            =============================== */
+            const now = new Date();
+            const dateStr = now.toISOString().split("T")[0];
+            const timeStr = now.toTimeString().split(" ")[0].replace(/:/g, "-");
+
+            pdf.save(`Purchase_Dashboard_${dateStr}_${timeStr}.pdf`);
+
+            buttonElement.innerHTML = originalHTML;
+            buttonElement.disabled = false;
+
+            console.log("✅ PDF generated with exact section-based page break");
+
+        } catch (err) {
+            console.error("PDF Error:", err);
+            alert("PDF generation failed: " + err.message);
 
             if (buttonElement) {
                 buttonElement.innerHTML = '<i class="fa fa-download"></i> Download';
@@ -1313,7 +2173,6 @@ export class PurchaseDashboard extends Component {
         });
     }
 
-    // Chart "View All" Handlers
     async onViewMonthlyPOStatus() {
         this.action.doAction({
             type: 'ir.actions.act_window',
@@ -1442,7 +2301,7 @@ export class PurchaseDashboard extends Component {
 
         this.action.doAction({
             type: 'ir.actions.act_window',
-            res_model: 'product.product',
+            res_model: 'stock.picking',
             name: 'Product Consumption Cycle',
             views: [[false, 'list'], [false, 'form']],
             context: { create: false },
@@ -1466,6 +2325,107 @@ export class PurchaseDashboard extends Component {
             domain: [['id', 'in', products]],
             context: { create: false },
         });
+    }
+    async onViewTopPurchasers() {
+        if (this.state.topPurchasers.length === 0) {
+            return;
+        }
+
+        // Extract partner IDs from topPurchasers and filter purchase orders by partner
+        const partnerIds = this.state.topPurchasers
+            .map(p => p.partnerId || p.id)
+            .filter(id => id !== undefined);
+
+        this.action.doAction({
+            type: 'ir.actions.act_window',
+            res_model: 'purchase.order',  // Changed model
+            name: 'Top Purchasers',
+            views: [[false, 'list'], [false, 'form']],
+            domain: [
+                ['date_order', '>=', this.state.dateFrom],
+                ['date_order', '<=', this.state.dateTo],
+            ],
+            context: { create: false },
+        });
+    }
+
+    async onOpenTargetsMenu() {
+        /**
+         * Open Purchase Target list view
+         * User yaha se sab targets dekh sakta hai aur edit kar sakta hai
+         */
+        this.action.doAction({
+            type: 'ir.actions.act_window',
+            res_model: 'purchase.target',
+            name: 'Purchase Targets',
+            views: [[false, 'tree'], [false, 'form']],
+            context: { create: true },
+        });
+    }
+
+    async onOpenTargetForm(ev) {
+        /**
+         * Open Target form for specific month
+         * Inline button se click hone par ye chalega
+         */
+        try {
+            // Find the month from button's data attribute
+            const button = ev.currentTarget || ev.target;
+            let month = button.getAttribute('data-month');
+            
+            // Agar direct button nahi mile to parent se find karo
+            if (!month) {
+                const parentButton = button.closest('button');
+                if (parentButton) {
+                    month = parentButton.getAttribute('data-month');
+                }
+            }
+            
+            console.log('📝 Opening target form for month:', month);
+            
+            if (!month) {
+                console.error('❌ Month not found in button data');
+                alert('Could not determine month. Please try again.');
+                return;
+            }
+
+            // Check agar target already hai to usko open karo, nahi to naya create karo
+            const existingTargets = await this.orm.search(
+                'purchase.target',
+                [['month', '=', month]]
+            );
+
+            console.log('✅ Found targets:', existingTargets.length);
+
+            if (existingTargets && existingTargets.length > 0) {
+                // Existing target ko open karo
+                console.log('📂 Opening existing target:', existingTargets[0]);
+                this.action.doAction({
+                    type: 'ir.actions.act_window',
+                    res_model: 'purchase.target',
+                    res_id: existingTargets[0],
+                    views: [[false, 'form']],
+                    target: 'current',
+                });
+            } else {
+                // Naya target form kholo with month pre-filled
+                console.log('➕ Creating new target for month:', month);
+                this.action.doAction({
+                    type: 'ir.actions.act_window',
+                    res_model: 'purchase.target',
+                    views: [[false, 'form']],
+                    context: {
+                        'default_month': month,
+                        'default_target_value': 0,
+                    },
+                    target: 'current',
+                });
+            }
+        } catch (error) {
+            console.error('❌ Error opening target form:', error);
+            console.error('Stack:', error.stack);
+            alert('Failed to open target form:\n' + error.message);
+        }
     }
 
     // Initialize all charts
@@ -1504,13 +2464,16 @@ export class PurchaseDashboard extends Component {
 
         try {
             this.createTopSuppliersChart();
+            this.createTopPurchasersChart();
             this.createMonthlyPOChart();
-            this.createMonthlyValuesChart();
+            // this.createMonthlyValuesChart();
+            this.createMonthlyValuesChartWithTarget();
             this.createMonthlyPOStatusChart();
             this.createMonthlyGRNChart();
             this.createCommodityChart();
             this.createConsumptionChart();
             this.createDepartmentInventoryChart();
+            // this.createEmployeePOChart(); 
             console.log("All charts created successfully");
         } catch (error) {
             console.error("Error creating charts:", error);
@@ -1658,8 +2621,14 @@ export class PurchaseDashboard extends Component {
                     y: {
                         beginAtZero: true,
                         ticks: {
+                            color: '#000000',
                             precision: 0
                         }
+                    },
+                     x: {
+                        ticks: {
+                            color: '#000000'
+                        },
                     }
                 }
             }
@@ -1730,8 +2699,14 @@ export class PurchaseDashboard extends Component {
                     y: {
                         beginAtZero: true,
                         ticks: {
+                            color: '#000000',
                             callback: (value) => this.formatCurrency(value)
                         }
+                    },
+                     x: {
+                        ticks: {
+                            color: '#000000'
+                        },
                     }
                 }
             }
@@ -1834,6 +2809,7 @@ export class PurchaseDashboard extends Component {
                             lineWidth: 1
                         },
                         ticks: {
+                            color: '#000000',
                             font: {
                                 size: 12,
                                 weight: '500'
@@ -1843,6 +2819,7 @@ export class PurchaseDashboard extends Component {
                     y: {
                         beginAtZero: true,
                         ticks: {
+                            color: '#000000',
                             precision: 0
                         },
                         grid: {
@@ -1880,6 +2857,7 @@ export class PurchaseDashboard extends Component {
         this.charts.monthlyGRN = new Chart(ctx, {
             type: 'line',
             data: {
+                // ✅ Use month (jo ab "October 2025" format me hai)
                 labels: this.state.monthlyGRN.map(m => m.month),
                 datasets: [
                     {
@@ -1905,8 +2883,8 @@ export class PurchaseDashboard extends Component {
                         callbacks: {
                             afterLabel: (context) => {
                                 const index = context.dataIndex;
-                                const value = this.state.monthlyGRN[index].value;
-                                return 'Value: ' + this.formatCurrency(value);
+                                const value = this.state.monthlyGRN[index].totalCost;
+                                return 'Total Cost: ' + this.formatCurrency(value);
                             }
                         }
                     }
@@ -1916,13 +2894,20 @@ export class PurchaseDashboard extends Component {
                         beginAtZero: true,
                         position: 'left',
                         ticks: {
-                            precision: 0
+                            color: '#000000',
+                            precision: 0,
                         },
                         title: {
                             display: true,
-                            text: 'GRN Count'
+                            text: 'GRN Count',
+                            color: '#000000',
                         }
-                    }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#000000'
+                        }
+                    },
                 }
             }
         });
@@ -2067,41 +3052,220 @@ export class PurchaseDashboard extends Component {
     }
 
     createConsumptionChart() {
+        console.log('=== CREATING CONSUMPTION CHART WITH TOTAL PRODUCT QUANTITIES ===');
+        
         const canvas = document.getElementById('consumptionChart');
+        
         if (!canvas) {
-            console.log("Canvas 'consumptionChart' not found");
+            console.error("❌ Canvas 'consumptionChart' not found");
             return;
         }
 
-        if (this.state.consumptionByProduct.length === 0) {
-            console.log("No consumption data for chart");
+        if (!this.state.consumptionByProduct || this.state.consumptionByProduct.length === 0) {
+            console.warn("⚠️ No consumption data available");
+            canvas.parentElement.innerHTML = '<p style="padding: 20px; text-align: center; color: #999;">No consumption data available</p>';
+            return;
+        }
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            console.error("❌ Could not get canvas context");
+            return;
+        }
+
+        if (this.charts.consumption) {
+            try {
+                this.charts.consumption.destroy();
+            } catch (e) {
+                console.log('Chart destroy log:', e.message);
+            }
+        }
+
+        const topProducts = this.state.consumptionByProduct.slice(0, 10);
+        console.log('✅ Creating chart with', topProducts.length, 'products');
+
+        // Get all departments
+        const allDepts = new Map();
+        topProducts.forEach(prod => {
+            Object.values(prod.departments).forEach(dept => {
+                if (!allDepts.has(dept.deptId)) {
+                    allDepts.set(dept.deptId, dept.deptName);
+                }
+            });
+        });
+
+        console.log('✅ Total departments:', allDepts.size);
+
+        // Colors
+        const colors = [
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(16, 185, 129, 0.8)',
+            'rgba(245, 158, 11, 0.8)',
+            'rgba(239, 68, 68, 0.8)',
+            'rgba(139, 92, 246, 0.8)',
+            'rgba(236, 72, 153, 0.8)',
+            'rgba(6, 182, 212, 0.8)',
+            'rgba(251, 146, 60, 0.8)',
+            'rgba(34, 197, 94, 0.8)',
+            'rgba(168, 85, 247, 0.8)',
+        ];
+
+        // Create datasets
+        const datasets = [];
+        const deptArray = Array.from(allDepts.entries());
+
+        deptArray.forEach((entry, idx) => {
+            const [deptId, deptName] = entry;
+            const color = colors[idx % colors.length];
+
+            const dataset = {
+                label: deptName,
+                data: topProducts.map(product => {
+                    const dept = product.departments[deptId];
+                    return dept ? dept.count : 0;
+                }),
+                backgroundColor: color,
+                borderColor: color.replace('0.8', '1'),
+                borderWidth: 1,
+            };
+
+            datasets.push(dataset);
+        });
+
+        console.log('✅ Datasets created:', datasets.length);
+
+        try {
+            this.charts.consumption = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: topProducts.map(p => p.productName),
+                    datasets: datasets,
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            align: 'center',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 10,
+                                font: {
+                                    size: 11,
+                                    weight: '600'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    return context.dataset.label + ': ' + context.parsed.x + ' times';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            beginAtZero: true,
+                            max: (() => {
+                                let maxValue = 0;
+                                datasets.forEach(dataset => {
+                                    dataset.data.forEach(value => {
+                                        maxValue = Math.max(maxValue, value);
+                                    });
+                                });
+                                return maxValue + 0.5;
+                            })(),
+                            ticks: {
+                                color: '#000000',
+                            },
+                        },
+                        y: {
+                            stacked: true,
+                            ticks: {
+                                color: '#000000',
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        }
+                    }
+                },
+                // ✅ CUSTOM PLUGIN - SHOW TOTAL PRODUCT QUANTITY AT BAR END
+                plugins: [{
+                    id: 'customLabels',
+                    afterDatasetsDraw(chart) {
+                        const ctx = chart.ctx;
+                        ctx.font = '12px Arial';
+                        ctx.fillStyle = '#000';
+                        ctx.textAlign = 'left';
+                        ctx.textBaseline = 'middle';
+
+                        chart.data.datasets.forEach((dataset, datasetIndex) => {
+                            const meta = chart.getDatasetMeta(datasetIndex);
+                            if (!meta.hidden) {
+                                meta.data.forEach((bar, index) => {
+                                    const product = topProducts[index];
+                                    
+                                    // ✅ Show label ONLY after the LAST dataset (last department)
+                                    if (product && datasetIndex === chart.data.datasets.length - 1) {
+                                        const x = bar.x + 20; // 20px right of bar end
+                                        const y = bar.y; // Center of bar height
+                                        
+                                        // ✅ Display TOTAL PRODUCT QUANTITY (sare department combined)
+                                        const label = `${product.totalQty} ${product.uom}`;
+                                        
+                                        ctx.fillText(label, x, y);
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }]
+            });
+
+            console.log('✅ Consumption chart created with total product quantities!');
+
+        } catch (error) {
+            console.error('❌ Chart creation error:', error);
+            console.error('Error message:', error.message);
+        }
+    }
+
+    createTopPurchasersChart() {
+        const canvas = document.getElementById('topPurchasersChart');
+        if (!canvas) {
+            console.log("Canvas 'topPurchasersChart' not found");
+            return;
+        }
+
+        if (this.state.topPurchasers.length === 0) {
+            console.log("No purchaser data for chart");
             return;
         }
 
         const ctx = canvas.getContext('2d');
 
-        if (this.charts.consumption) {
-            this.charts.consumption.destroy();
+        if (this.charts.topPurchasers) {
+            this.charts.topPurchasers.destroy();
         }
 
-        const topProducts = this.state.consumptionByProduct.slice(0, 10);
-        console.log("Creating consumption chart...");
+        console.log("Creating top purchasers chart...");
 
-        this.charts.consumption = new Chart(ctx, {
+        this.charts.topPurchasers = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: topProducts.map(p => p.productName),
+                labels: this.state.topPurchasers.map(p => p.name),
                 datasets: [{
-                    label: 'Days',
-                    data: topProducts.map(p => parseFloat(p.avgDays)),
-                    backgroundColor: topProducts.map(p => {
-                        const days = parseFloat(p.avgDays);
-                        if (days > 30) return 'rgba(239, 68, 68, 0.8)';
-                        if (days > 15) return 'rgba(245, 158, 11, 0.8)';
-                        return 'rgba(16, 185, 129, 0.8)';
-                    }),
+                    label: 'Total Spend',
+                    data: this.state.topPurchasers.map(p => p.totalSpend),
+                    backgroundColor: 'rgba(139, 92, 246, 0.8)',
+                    borderColor: 'rgba(139, 92, 246, 1)',
+                    borderWidth: 1,
                     borderRadius: 6,
-                    borderWidth: 0,
                 }]
             },
             options: {
@@ -2115,7 +3279,7 @@ export class PurchaseDashboard extends Component {
                     tooltip: {
                         callbacks: {
                             label: (context) => {
-                                return 'Avg Days: ' + context.parsed.x.toFixed(1);
+                                return 'Spend: ' + this.formatCurrency(context.parsed.x);
                             }
                         }
                     }
@@ -2123,16 +3287,21 @@ export class PurchaseDashboard extends Component {
                 scales: {
                     x: {
                         beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Average Days (Order to Receipt)'
+                        ticks: {
+                            color: '#000000',
+                            callback: (value) => this.formatCurrency(value)
                         }
+                    },
+                    y: {
+                        ticks: {
+                            color: '#000000'
+                        },
                     }
                 }
             }
         });
 
-        console.log("Consumption chart created");
+        console.log("Top purchasers chart created");
     }
 }
 

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Purchase Target Model Views -->
+
+    <!-- List View (CHANGED FROM tree TO list) -->
+    <record id="view_purchase_target_list" model="ir.ui.view">
+        <field name="name">purchase.target.list</field>
+        <field name="model">purchase.target</field>
+        <field name="arch" type="xml">
+            <list string="Purchase Targets" edit="top">
+                <field name="month"/>
+                <field name="target_value"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="created_on"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_purchase_target_form" model="ir.ui.view">
+        <field name="name">purchase.target.form</field>
+        <field name="model">purchase.target</field>
+        <field name="arch" type="xml">
+            <form string="Purchase Target">
+                <sheet>
+                    <group>
+                        <field name="month" 
+                               placeholder="YYYY-MM (e.g., 2025-01)"
+                               help="Enter month in format YYYY-MM"/>
+                        <field name="target_value"/>
+                    </group>
+                    <group>
+                        <field name="company_id" groups="base.group_multi_company"/>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="created_on" readonly="1"/>
+                    </group>
+                    <field name="notes" placeholder="Add any notes about this target..."/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_purchase_target_search" model="ir.ui.view">
+        <field name="name">purchase.target.search</field>
+        <field name="model">purchase.target</field>
+        <field name="arch" type="xml">
+            <search string="Purchase Target">
+                <field name="month"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <separator/>
+                <filter name="filter_current_month" 
+                        string="Current Month"
+                        domain="[('month', '=', context_today().strftime('%Y-%m'))]"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_purchase_target" model="ir.actions.act_window">
+        <field name="name">Purchase Targets</field>
+        <field name="res_model">purchase.target</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a new purchase target for each month
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu Item -->
+    <menuitem id="menu_purchase_target"
+              name="Purchase Targets"
+              action="action_purchase_target"
+              parent="purchase.menu_purchase_config"
+              sequence="10"/>
+</odoo>

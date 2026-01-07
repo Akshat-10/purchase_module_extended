@@ -3,3 +3,5 @@ access_purchase_dashboard_user,purchase.dashboard.user,model_purchase_dashboard,
 access_purchase_dashboard_manager,purchase.dashboard.manager,model_purchase_dashboard,purchase.group_purchase_manager,1,1,1,1
 access_master_comparison_dashboard_user,access.master.comparison.dashboard.user,model_master_comparison_dashboard,base.group_user,1,1,1,1
 access_master_comparison_dashboard_manager,access.master.comparison.dashboard.manager,model_master_comparison_dashboard,purchase.group_purchase_manager,1,1,1,1
+access_purchase_target_user,purchase.target.user,model_purchase_target,purchase.group_purchase_user,1,1,1,0
+access_purchase_target_manager,purchase.target.manager,model_purchase_target,purchase.group_purchase_manager,1,1,1,1

@@ -48,6 +48,12 @@ class PurchaseDashboard(models.Model):
         string='Monthly PO Values Data',
         compute='_compute_monthly_po_values'
     )
+    
+    # Monthly PO Summary
+    monthly_po_summary_data = fields.Text(
+    string='Monthly PO Summary Data',
+    compute='_compute_monthly_po_summary'
+    )
 
     # Total Inventory Cost
     total_inventory_cost = fields.Monetary(
@@ -270,6 +276,67 @@ class PurchaseDashboard(models.Model):
                     'actual_value': actual_value or 0
                 })
             record.monthly_po_values_data = str(monthly_data)
+    
+    @api.depends('date_from', 'date_to', 'company_id')
+    def _compute_monthly_po_summary(self):
+        """Monthly PO count + value combined"""
+        for record in self:
+            query = """
+                SELECT 
+                    TO_CHAR(DATE_TRUNC('month', po.date_order), 'YYYY-MM') AS month,
+                    po.state,
+                    COUNT(*) AS po_count,
+                    COALESCE(SUM(po.amount_total_cc), 0) AS po_value
+                FROM purchase_order po
+                WHERE po.company_id = %s
+                    AND po.date_order >= %s
+                    AND po.date_order <= %s
+                GROUP BY DATE_TRUNC('month', po.date_order), po.state
+                ORDER BY month
+            """
+
+            self.env.cr.execute(query, (
+                record.company_id.id,
+                record.date_from,
+                record.date_to
+            ))
+
+            results = self.env.cr.fetchall()
+            monthly_dict = {}
+            
+            for month, state, count, value in results:
+                if month not in monthly_dict:
+                    monthly_dict[month] = {
+                        'month': month,
+                        'planned_count': 0,
+                        'planned_value': 0,
+                        'released_count': 0,
+                        'actual_value': 0,
+                    }
+                
+                if state == 'draft':
+                    monthly_dict[month]['planned_count'] += count
+                    monthly_dict[month]['planned_value'] += value
+                elif state in ('purchase', 'done'):
+                    monthly_dict[month]['released_count'] += count
+                    monthly_dict[month]['actual_value'] += value
+
+            monthly_data = []
+            currency = record.company_id.currency_id.symbol
+
+            for data in sorted(monthly_dict.values(), key=lambda x: x['month']):
+                monthly_data.append({
+                    'month': data['month'],
+                    'planned_count': data['planned_count'],
+                    'planned_value': data['planned_value'],
+                    'released_count': data['released_count'],
+                    'actual_value': data['actual_value'],
+                    'planned_display': f"{data['planned_count']} ({currency} {data['planned_value']:,.2f})",
+                    'released_display': f"{data['released_count']} ({currency} {data['actual_value']:,.2f})",
+                })
+
+            record.monthly_po_summary_data = str(monthly_data)
+
 
     @api.depends('company_id')
     def _compute_total_inventory_cost(self):
@@ -279,7 +346,7 @@ class PurchaseDashboard(models.Model):
             quants = self.env['stock.quant'].search([
                 ('company_id', '=', record.company_id.id),
                 ('quantity', '>', 0),
-                ('location_id.usage', '=', 'internal')
+                ('location_id.usa   e', '=', 'internal')
             ])
 
             total_cost = sum(
@@ -497,7 +564,8 @@ class PurchaseDashboard(models.Model):
                     'po_count': po_count
                 })
             record.commodity_spend_data = str(commodity_data)
-
+            
+        
     def action_refresh_dashboard(self):
         """Manual refresh action for dashboard"""
         self.ensure_one()
@@ -507,6 +575,7 @@ class PurchaseDashboard(models.Model):
         self._compute_items_with_po()
         self._compute_monthly_release_po()
         self._compute_monthly_po_values()
+        self._compute_monthly_po_summary()
         self._compute_total_inventory_cost()
         self._compute_not_moved_inventory()
         self._compute_new_vendors()

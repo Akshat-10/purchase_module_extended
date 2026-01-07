@@ -41,17 +41,20 @@ Features:
     'data': [
         'security/ir.model.access.csv',
         'views/purchase_dashboard_actions.xml',
+        'views/purchase_target_views.xml',
     ],
     'assets': {
             'web.assets_backend': [
                 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js',
                 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css',
+                'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
                 'purchase_dashboard/static/src/js/purchase_dashboard.js',
                 'purchase_dashboard/static/src/css/purchase_dashboard.css',
                 'purchase_dashboard/static/src/xml/purchase_dashboard.xml',
                 'purchase_dashboard/static/src/js/master_comparison_dashboard.js',
                 'purchase_dashboard/static/src/css/master_comparison_dashboard.css',
-                'purchase_dashboard/static/src/xml/master_comparison_dashboard.xml'
+                'purchase_dashboard/static/src/xml/master_comparison_dashboard.xml',
+                'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
             ],
         },
     'demo': [],
