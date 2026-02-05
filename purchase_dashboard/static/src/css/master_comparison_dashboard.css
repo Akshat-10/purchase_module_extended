@@ -19,6 +19,10 @@
     box-shadow: 2px 3px 10px rgb(0 0 0 / 50%);
     border-radius: 8px !important;
     margin-bottom: 30px;
+    margin-top: 20px;
+    margin-left: 15px;
+    margin-right: 15px;
+    border: 1px solid #000000;
 }
 
 .master_dashboard_title {
@@ -155,15 +159,17 @@
     box-shadow: 2px 3px 10px rgb(0 0 0 / 50%);
     min-width: 0;
     overflow: hidden;
+    border: 1px solid #000000;
 }
 
 .company_header {
     text-align: center;
     padding: 15px;
-    margin: -20px -20px 20px -20px;
+    margin: -20px -20px -20px -20px;
     border-radius: 5px 5px 0 0;
     font-size: 1.3rem;
     font-weight: 500;
+    color: #000000;
 }
 
 .company_section.company_a .company_header {

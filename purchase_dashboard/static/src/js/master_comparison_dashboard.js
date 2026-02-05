@@ -816,84 +816,206 @@ export class MasterComparisonDashboard extends Component {
         let buttonElement = null;
 
         try {
-            // Get button element
-            buttonElement = ev.target.closest('button');
-
-            // Load html2canvas library if not already loaded
-            if (typeof html2canvas === 'undefined') {
-                await loadJS("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
-            }
-
-            // Show loading indicator
+            /* ===============================
+            BUTTON UI
+            =============================== */
+            buttonElement = ev.target.closest("button");
             const originalHTML = buttonElement.innerHTML;
-            buttonElement.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Generating...';
+            buttonElement.innerHTML =
+                '<i class="fa fa-spinner fa-spin"></i> Generating...';
             buttonElement.disabled = true;
 
-            // Wait a moment for the UI to update
-            await new Promise(resolve => setTimeout(resolve, 300));
-
-            // Get the dashboard content element - CORRECTED SELECTOR
-            const dashboardElement = document.querySelector('.o_master_comparison_dashboard');
-
-            if (!dashboardElement) {
-                console.error('Dashboard element not found');
-                throw new Error('Dashboard element not found');
+            /* ===============================
+            LOAD LIBRARIES
+            =============================== */
+            if (typeof html2canvas === "undefined") {
+                await loadJS(
+                    "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+                );
+                await new Promise(r => setTimeout(r, 500));
             }
 
-            console.log('Dashboard element found:', dashboardElement);
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                throw new Error("jsPDF not loaded");
+            }
 
-            // Generate canvas from the dashboard
-            const canvas = await html2canvas(dashboardElement, {
-                backgroundColor: '#f8f9fa',
-                scale: 1.5, // Reduced from 2 for better performance
-                logging: true, // Enable logging for debugging
-                useCORS: true,
-                allowTaint: true,
-                scrollY: -window.scrollY,
-                scrollX: -window.scrollX,
-                width: dashboardElement.scrollWidth,
-                height: dashboardElement.scrollHeight,
+            const { jsPDF } = window.jspdf;
+
+            /* ===============================
+            DASHBOARD ELEMENT
+            =============================== */
+            const dashboard = document.querySelector(
+                ".o_master_comparison_dashboard"
+            );
+
+            if (!dashboard) {
+                throw new Error("Master dashboard not found");
+            }
+
+            /* =====================================================
+            COLLECT ALL PAGE BREAK MARKERS (MULTI BREAK SUPPORT)
+            ===================================================== */
+            const pageBreakEls = dashboard.querySelectorAll(".pdf-page-break");
+            const dashboardRect = dashboard.getBoundingClientRect();
+
+            const pageBreakPixels = [...pageBreakEls].map(el => {
+                const r = el.getBoundingClientRect();
+                return (r.top - dashboardRect.top) + dashboard.scrollTop;
             });
 
-            console.log('Canvas generated:', canvas);
+            console.log("✅ Page break pixels:", pageBreakPixels);
 
-            // Convert canvas to blob
-            canvas.toBlob((blob) => {
-                if (!blob) {
-                    throw new Error('Failed to create blob from canvas');
+            /* ===============================
+            FREEZE CHARTS
+            =============================== */
+            const chartStates = [];
+
+            if (window.Chart && Chart.instances) {
+                Object.values(Chart.instances).forEach(chart => {
+                    chartStates.push({
+                        chart,
+                        animation: chart.options.animation,
+                        responsive: chart.options.responsive
+                    });
+
+                    chart.options.animation = false;
+                    chart.options.responsive = false;
+                    chart.update("none");
+                });
+            }
+
+            await new Promise(r => setTimeout(r, 600));
+
+            /* ===============================
+            CAPTURE DASHBOARD
+            =============================== */
+            const SCALE = 2.5;
+
+            const canvas = await html2canvas(dashboard, {
+                scale: SCALE,
+                useCORS: true,
+                backgroundColor: "#ffffff",
+                scrollX: 0,
+                scrollY: 0,
+                windowWidth: dashboard.scrollWidth,
+                windowHeight: dashboard.scrollHeight,
+                onclone: (clonedDoc) => {
+                    const clonedDash =
+                        clonedDoc.querySelector(".o_master_comparison_dashboard");
+
+                    if (!clonedDash) return;
+
+                    /* Hide page break markers */
+                    clonedDash
+                        .querySelectorAll(".pdf-page-break")
+                        .forEach(el => (el.style.display = "none"));
+
+                    /* Improve chart visibility */
+                    clonedDash.querySelectorAll("canvas").forEach(c => {
+                        const p = c.parentElement;
+                        if (p) {
+                            p.style.background = "#fff";
+                            p.style.border = "1px solid #c0c0c0";
+                            p.style.borderRadius = "8px";
+                            p.style.boxShadow =
+                                "0 3px 10px rgba(0,0,0,0.25)";
+                        }
+                    });
+
+                    /* Tables */
+                    clonedDash.querySelectorAll("table").forEach(t => {
+                        t.style.background = "#fff";
+                        t.style.border = "1px solid #c0c0c0";
+                    });
                 }
+            });
 
-                // Create download link
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
+            /* ===============================
+            RESTORE CHARTS
+            =============================== */
+            chartStates.forEach(s => {
+                s.chart.options.animation = s.animation;
+                s.chart.options.responsive = s.responsive;
+                s.chart.update("none");
+            });
 
-                // Generate filename with current date
-                const dateStr = new Date().toISOString().split('T')[0];
-                link.download = `Comparison_Dashboard_${dateStr}.png`;
-                link.href = url;
+            /* =====================================================
+            CONVERT PAGE BREAKS TO CANVAS SPACE
+            ===================================================== */
+            const scaleFactor = canvas.height / dashboard.scrollHeight;
 
-                // Trigger download
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+            const breaks = pageBreakPixels
+                .map(px => Math.round(px * scaleFactor))
+                .filter(y => y > 0 && y < canvas.height);
 
-                // Clean up
-                setTimeout(() => URL.revokeObjectURL(url), 100);
+            breaks.push(canvas.height); // last page
 
-                // Restore button
-                if (buttonElement) {
-                    buttonElement.innerHTML = originalHTML;
-                    buttonElement.disabled = false;
-                }
-            }, 'image/png');
+            console.log("📌 Canvas breaks:", breaks);
 
-        } catch (error) {
-            console.error('Error downloading dashboard:', error);
-            alert('Failed to download dashboard. Error: ' + error.message);
+            /* ===============================
+            CREATE PDF
+            =============================== */
+            const pdf = new jsPDF("p", "mm", "a4");
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const margin = 10;
+            const usableWidth = pageWidth - margin * 2;
 
-            // Restore button on error
+            let prevY = 0;
+
+            breaks.forEach((breakY, index) => {
+                const pageCanvas = document.createElement("canvas");
+                pageCanvas.width = canvas.width;
+                pageCanvas.height = breakY - prevY;
+
+                const ctx = pageCanvas.getContext("2d");
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+                ctx.drawImage(
+                    canvas,
+                    0, prevY,
+                    canvas.width, breakY - prevY,
+                    0, 0,
+                    canvas.width, breakY - prevY
+                );
+
+                if (index > 0) pdf.addPage();
+
+                const imgHeight =
+                    (pageCanvas.height * usableWidth) / pageCanvas.width;
+
+                pdf.addImage(
+                    pageCanvas.toDataURL("image/jpeg", 1.0),
+                    "JPEG",
+                    margin,
+                    margin,
+                    usableWidth,
+                    imgHeight
+                );
+
+                prevY = breakY;
+            });
+
+            /* ===============================
+            SAVE PDF
+            =============================== */
+            const now = new Date();
+            const dateStr = now.toISOString().split("T")[0];
+            const timeStr = now.toTimeString().split(" ")[0].replace(/:/g, "-");
+
+            pdf.save(`Master_Purchase_Dashboard_${dateStr}_${timeStr}.pdf`);
+
+            buttonElement.innerHTML = originalHTML;
+            buttonElement.disabled = false;
+
+            console.log("✅ Master dashboard PDF generated perfectly");
+
+        } catch (err) {
+            console.error("PDF Error:", err);
+            alert("PDF generation failed: " + err.message);
+
             if (buttonElement) {
-                buttonElement.innerHTML = '<i class="fa fa-download"></i> Download';
+                buttonElement.innerHTML =
+                    '<i class="fa fa-download"></i> Download';
                 buttonElement.disabled = false;
             }
         }
