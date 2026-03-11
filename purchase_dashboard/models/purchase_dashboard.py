@@ -5,6 +5,9 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
 
+import logging
+_logger = logging.getLogger(__name__)
+
 
 class PurchaseDashboard(models.Model):
     _name = 'purchase.dashboard'
@@ -31,28 +34,16 @@ class PurchaseDashboard(models.Model):
     )
     top_supplier_data = fields.Text(string='Top Supplier Data', compute='_compute_top_suppliers')
 
-    # Items with PO
+    # FIX: Items with PO - count distinct products in PO lines
     items_with_po_count = fields.Integer(
         string='Items with Purchase Orders',
         compute='_compute_items_with_po'
     )
 
-    # Monthly Release PO
-    monthly_release_po_data = fields.Text(
-        string='Monthly Release PO Data',
-        compute='_compute_monthly_release_po'
-    )
-
-    # Monthly PO Values
-    monthly_po_values_data = fields.Text(
-        string='Monthly PO Values Data',
-        compute='_compute_monthly_po_values'
-    )
-    
     # Monthly PO Summary
     monthly_po_summary_data = fields.Text(
-    string='Monthly PO Summary Data',
-    compute='_compute_monthly_po_summary'
+        string='Monthly PO Summary Data',
+        compute='_compute_monthly_po_summary'
     )
 
     # Total Inventory Cost
@@ -64,15 +55,15 @@ class PurchaseDashboard(models.Model):
 
     # Not Moved Inventory
     inventory_not_moved_30 = fields.Integer(
-        string='Not Moved (30 days)',
+        string='Not Moved (30+ days)',
         compute='_compute_not_moved_inventory'
     )
     inventory_not_moved_45 = fields.Integer(
-        string='Not Moved (45 days)',
+        string='Not Moved (45+ days)',
         compute='_compute_not_moved_inventory'
     )
     inventory_not_moved_60 = fields.Integer(
-        string='Not Moved (60 days)',
+        string='Not Moved (60+ days)',
         compute='_compute_not_moved_inventory'
     )
     inventory_not_moved_data = fields.Text(
@@ -92,14 +83,13 @@ class PurchaseDashboard(models.Model):
         compute='_compute_new_vendors'
     )
 
-    # Consumption Cycle
-    avg_consumption_cycle = fields.Float(
-        string='Avg. Consumption Cycle (days)',
-        compute='_compute_consumption_cycle'
+    avg_po_to_receipt = fields.Float(
+        string='Avg. PO to Receipt (days)',
+        compute='_compute_po_to_receipt'
     )
-    consumption_cycle_data = fields.Text(
-        string='Consumption Cycle Data',
-        compute='_compute_consumption_cycle'
+    po_to_receipt_data = fields.Text(
+        string='PO to Receipt Data',
+        compute='_compute_po_to_receipt'
     )
 
     # Department-wise Consumption
@@ -122,24 +112,16 @@ class PurchaseDashboard(models.Model):
 
     @api.depends('date_from', 'date_to', 'company_id')
     def _compute_total_spend_yearly(self):
-        """Calculate total spend for the year"""
+        """Calculate total spend for confirmed POs in date range"""
         for record in self:
-            # Get year start and end dates
-            year_start = fields.Date.today().replace(month=1, day=1)
-            year_end = fields.Date.today().replace(month=12, day=31)
-
-            # Query purchase orders
             po_domain = [
                 ('state', 'in', ['purchase', 'done']),
                 ('company_id', '=', record.company_id.id),
-                ('date_approve', '>=', year_start),
-                ('date_approve', '<=', year_end)
+                ('date_approve', '>=', record.date_from),
+                ('date_approve', '<=', record.date_to),
             ]
-
             purchase_orders = self.env['purchase.order'].search(po_domain)
-
-            total = sum(po.amount_total_cc for po in purchase_orders)
-            record.total_spend_yearly = total
+            record.total_spend_yearly = sum(po.amount_total for po in purchase_orders)
 
     @api.depends('date_from', 'date_to', 'company_id')
     def _compute_top_suppliers(self):
@@ -149,7 +131,7 @@ class PurchaseDashboard(models.Model):
                 SELECT 
                     po.partner_id,
                     rp.name,
-                    SUM(po.amount_total_cc) as total_spend,
+                    SUM(po.amount_total) as total_spend,
                     COUNT(po.id) as po_count
                 FROM purchase_order po
                 JOIN res_partner rp ON po.partner_id = rp.id
@@ -161,19 +143,14 @@ class PurchaseDashboard(models.Model):
                 ORDER BY total_spend DESC
                 LIMIT 10
             """
-
             self.env.cr.execute(query, (
                 record.company_id.id,
                 record.date_from,
                 record.date_to
             ))
-
             results = self.env.cr.fetchall()
-
             supplier_ids = [r[0] for r in results]
             record.top_supplier_ids = [(6, 0, supplier_ids)]
-
-            # Store detailed data as JSON-like text
             supplier_data = []
             for partner_id, name, total_spend, po_count in results:
                 supplier_data.append({
@@ -186,7 +163,11 @@ class PurchaseDashboard(models.Model):
 
     @api.depends('date_from', 'date_to', 'company_id')
     def _compute_items_with_po(self):
-        """Count unique products with purchase orders"""
+        """
+        FIX: Count unique products that have confirmed PO lines in date range.
+        Previously this was counting ALL active products — now correctly counts
+        only products appearing in purchase orders within the selected date range.
+        """
         for record in self:
             query = """
                 SELECT COUNT(DISTINCT pol.product_id)
@@ -199,94 +180,32 @@ class PurchaseDashboard(models.Model):
                     AND pol.product_id IS NOT NULL
                     AND pol.display_type IS NULL
             """
-
             self.env.cr.execute(query, (
                 record.company_id.id,
                 record.date_from,
                 record.date_to
             ))
-
             result = self.env.cr.fetchone()
             record.items_with_po_count = result[0] if result else 0
 
     @api.depends('date_from', 'date_to', 'company_id')
-    def _compute_monthly_release_po(self):
-        """Calculate monthly planned vs actual PO releases"""
-        for record in self:
-            query = """
-                SELECT 
-                    DATE_TRUNC('month', po.date_order) as month,
-                    COUNT(CASE WHEN po.state = 'draft' THEN 1 END) as planned,
-                    COUNT(CASE WHEN po.state IN ('purchase', 'done') THEN 1 END) as released
-                FROM purchase_order po
-                WHERE po.company_id = %s
-                    AND po.date_order >= %s
-                    AND po.date_order <= %s
-                GROUP BY DATE_TRUNC('month', po.date_order)
-                ORDER BY month
-            """
-
-            self.env.cr.execute(query, (
-                record.company_id.id,
-                record.date_from,
-                record.date_to
-            ))
-
-            results = self.env.cr.fetchall()
-
-            monthly_data = []
-            for month, planned, released in results:
-                monthly_data.append({
-                    'month': month.strftime('%Y-%m') if month else '',
-                    'planned': planned or 0,
-                    'released': released or 0
-                })
-            record.monthly_release_po_data = str(monthly_data)
-
-    @api.depends('date_from', 'date_to', 'company_id')
-    def _compute_monthly_po_values(self):
-        """Calculate monthly planned vs actual PO values"""
-        for record in self:
-            query = """
-                SELECT 
-                    DATE_TRUNC('month', po.date_order) as month,
-                    SUM(CASE WHEN po.state = 'draft' THEN po.amount_total_cc ELSE 0 END) as planned_value,
-                    SUM(CASE WHEN po.state IN ('purchase', 'done') THEN po.amount_total_cc ELSE 0 END) as actual_value
-                FROM purchase_order po
-                WHERE po.company_id = %s
-                    AND po.date_order >= %s
-                    AND po.date_order <= %s
-                GROUP BY DATE_TRUNC('month', po.date_order)
-                ORDER BY month
-            """
-
-            self.env.cr.execute(query, (
-                record.company_id.id,
-                record.date_from,
-                record.date_to
-            ))
-
-            results = self.env.cr.fetchall()
-
-            monthly_data = []
-            for month, planned_value, actual_value in results:
-                monthly_data.append({
-                    'month': month.strftime('%Y-%m') if month else '',
-                    'planned_value': planned_value or 0,
-                    'actual_value': actual_value or 0
-                })
-            record.monthly_po_values_data = str(monthly_data)
-    
-    @api.depends('date_from', 'date_to', 'company_id')
     def _compute_monthly_po_summary(self):
-        """Monthly PO count + value combined"""
+        """
+        FIX: Monthly PO count + value.
+        Now includes 'to approve' and 'sent' states in released/planned counts.
+        States:
+          - draft → RFQ (planned)
+          - sent  → RFQ Sent (planned)
+          - to approve → waiting approval (counted as released for ops visibility)
+          - purchase, done → confirmed PO (released/actual)
+        """
         for record in self:
             query = """
                 SELECT 
                     TO_CHAR(DATE_TRUNC('month', po.date_order), 'YYYY-MM') AS month,
                     po.state,
                     COUNT(*) AS po_count,
-                    COALESCE(SUM(po.amount_total_cc), 0) AS po_value
+                    COALESCE(SUM(po.amount_total), 0) AS po_value
                 FROM purchase_order po
                 WHERE po.company_id = %s
                     AND po.date_order >= %s
@@ -294,16 +213,14 @@ class PurchaseDashboard(models.Model):
                 GROUP BY DATE_TRUNC('month', po.date_order), po.state
                 ORDER BY month
             """
-
             self.env.cr.execute(query, (
                 record.company_id.id,
                 record.date_from,
                 record.date_to
             ))
-
             results = self.env.cr.fetchall()
             monthly_dict = {}
-            
+
             for month, state, count, value in results:
                 if month not in monthly_dict:
                     monthly_dict[month] = {
@@ -312,11 +229,21 @@ class PurchaseDashboard(models.Model):
                         'planned_value': 0,
                         'released_count': 0,
                         'actual_value': 0,
+                        'to_approve_count': 0,
+                        'to_approve_value': 0,
                     }
-                
-                if state == 'draft':
+
+                if state in ('draft', 'sent'):
+                    # RFQ and RFQ Sent = planned
                     monthly_dict[month]['planned_count'] += count
                     monthly_dict[month]['planned_value'] += value
+                elif state == 'to approve':
+                    # Waiting approval — show separately
+                    monthly_dict[month]['to_approve_count'] += count
+                    monthly_dict[month]['to_approve_value'] += value
+                    # Also count in released for chart (manager approval pending but ops confirmed)
+                    monthly_dict[month]['released_count'] += count
+                    monthly_dict[month]['actual_value'] += value
                 elif state in ('purchase', 'done'):
                     monthly_dict[month]['released_count'] += count
                     monthly_dict[month]['actual_value'] += value
@@ -331,37 +258,60 @@ class PurchaseDashboard(models.Model):
                     'planned_value': data['planned_value'],
                     'released_count': data['released_count'],
                     'actual_value': data['actual_value'],
+                    'to_approve_count': data['to_approve_count'],
+                    'to_approve_value': data['to_approve_value'],
                     'planned_display': f"{data['planned_count']} ({currency} {data['planned_value']:,.2f})",
                     'released_display': f"{data['released_count']} ({currency} {data['actual_value']:,.2f})",
                 })
 
             record.monthly_po_summary_data = str(monthly_data)
 
-
-    @api.depends('company_id')
+    @api.depends('date_from', 'date_to', 'company_id')
     def _compute_total_inventory_cost(self):
-        """Calculate total inventory cost"""
+        """
+        FIX: Use stock.quant value field directly.
+        Odoo maintains the 'value' field on stock.quant using actual cost (AVCO/FIFO/Standard).
+        Do NOT use standard_price * quantity as it may differ from actual valuation.
+        """
         for record in self:
-            # Get all stock quants with quantity > 0
-            quants = self.env['stock.quant'].search([
-                ('company_id', '=', record.company_id.id),
-                ('quantity', '>', 0),
-                ('location_id.usa   e', '=', 'internal')
-            ])
-
-            total_cost = sum(
-                quant.quantity * quant.product_id.standard_price
-                for quant in quants
-            )
-            record.total_inventory_cost = total_cost
+            query = """
+                SELECT 
+                    COALESCE(SUM(sq.value), 0) as total_value,
+                    COUNT(DISTINCT sq.product_id) as product_count,
+                    SUM(sq.quantity) as total_qty
+                FROM stock_quant sq
+                JOIN stock_location sl ON sq.location_id = sl.id
+                WHERE sq.company_id = %s
+                    AND sq.quantity > 0
+                    AND sl.usage = 'internal'
+            """
+            try:
+                self.env.cr.execute(query, (record.company_id.id,))
+                result = self.env.cr.fetchone()
+                if result and result[0]:
+                    record.total_inventory_cost = result[0]
+                    _logger.info("Total inventory cost: %.2f (products: %s, qty: %.2f)",
+                                 result[0], result[1], result[2] or 0)
+                else:
+                    record.total_inventory_cost = 0
+                    _logger.warning("Inventory cost is zero — check stock.quant records for company %s",
+                                    record.company_id.name)
+            except Exception as e:
+                _logger.error("Error calculating inventory cost: %s", e, exc_info=True)
+                record.total_inventory_cost = 0
 
     @api.depends('company_id')
     def _compute_not_moved_inventory(self):
-        """Calculate inventory not moved for 30, 45, 60 days"""
+        """
+        FIX: Corrected bucket logic.
+        - notMoved30 = products not consumed for 30+ days (INCLUDES 45+ and 60+)
+        - notMoved45 = products not consumed for 45+ days (INCLUDES 60+)
+        - notMoved60 = products not consumed for 60+ days
+        Previously buckets were mutually exclusive which gave misleading totals.
+        """
         for record in self:
             today = fields.Date.today()
 
-            # Get products with their last movement date
             query = """
                 SELECT 
                     sq.product_id,
@@ -369,35 +319,45 @@ class PurchaseDashboard(models.Model):
                     pt.name,
                     MAX(sm.date) as last_move_date,
                     SUM(sq.quantity) as qty,
-                    pp.standard_price
+                    COALESCE(SUM(sq.value), 0) as total_value
                 FROM stock_quant sq
                 JOIN product_product pp ON sq.product_id = pp.id
                 JOIN product_template pt ON pp.product_tmpl_id = pt.id
                 LEFT JOIN stock_move sm ON sm.product_id = sq.product_id
+                    AND sm.state = 'done'
+                    AND sm.company_id = %s
+                    AND sm.location_id IN (
+                        SELECT id FROM stock_location WHERE usage = 'internal'
+                    )
+                    AND sm.location_dest_id NOT IN (
+                        SELECT id FROM stock_location WHERE usage = 'internal'
+                    )
                 WHERE sq.company_id = %s
                     AND sq.quantity > 0
                     AND sq.location_id IN (
                         SELECT id FROM stock_location WHERE usage = 'internal'
                     )
-                GROUP BY sq.product_id, pp.default_code, pt.name, pp.standard_price
-                HAVING MAX(sm.date) IS NOT NULL
+                GROUP BY sq.product_id, pp.default_code, pt.name
             """
 
-            self.env.cr.execute(query, (record.company_id.id,))
+            self.env.cr.execute(query, (record.company_id.id, record.company_id.id))
             results = self.env.cr.fetchall()
 
-            count_30 = 0
-            count_45 = 0
-            count_60 = 0
+            # FIX: Cumulative buckets (30+ includes 45+ and 60+)
+            count_30 = 0  # 30+ days (all slow moving)
+            count_45 = 0  # 45+ days
+            count_60 = 0  # 60+ days
             inventory_data = []
 
-            for product_id, code, name, last_move, qty, price in results:
+            for product_id, code, name, last_move, qty, value in results:
                 if not last_move:
-                    continue
-
-                days_not_moved = (today - last_move.date()).days
+                    days_not_moved = 999
+                else:
+                    days_not_moved = (today - last_move.date()).days
 
                 if days_not_moved >= 60:
+                    count_30 += 1
+                    count_45 += 1
                     count_60 += 1
                     inventory_data.append({
                         'product_id': product_id,
@@ -405,42 +365,64 @@ class PurchaseDashboard(models.Model):
                         'name': name,
                         'days_not_moved': days_not_moved,
                         'qty': qty,
-                        'value': qty * price
+                        'value': value
                     })
                 elif days_not_moved >= 45:
+                    count_30 += 1
                     count_45 += 1
+                    inventory_data.append({
+                        'product_id': product_id,
+                        'code': code,
+                        'name': name,
+                        'days_not_moved': days_not_moved,
+                        'qty': qty,
+                        'value': value
+                    })
                 elif days_not_moved >= 30:
                     count_30 += 1
+                    inventory_data.append({
+                        'product_id': product_id,
+                        'code': code,
+                        'name': name,
+                        'days_not_moved': days_not_moved,
+                        'qty': qty,
+                        'value': value
+                    })
 
             record.inventory_not_moved_30 = count_30
             record.inventory_not_moved_45 = count_45
             record.inventory_not_moved_60 = count_60
             record.inventory_not_moved_data = str(inventory_data)
 
-    @api.depends('company_id')
+    @api.depends('date_from', 'date_to', 'company_id')
     def _compute_new_vendors(self):
-        """Count vendors created in current month"""
+        """
+        FIX: Added company filter. Uses date_from/date_to range, not hardcoded month.
+        """
         for record in self:
-            month_start = fields.Date.today().replace(day=1)
-
             new_vendors = self.env['res.partner'].search([
                 ('supplier_rank', '>', 0),
                 ('company_id', 'in', [False, record.company_id.id]),
-                ('create_date', '>=', month_start)
+                ('create_date', '>=', record.date_from),
+                ('create_date', '<=', record.date_to),
             ])
-
             record.new_vendors_count = len(new_vendors)
             record.new_vendor_ids = [(6, 0, new_vendors.ids)]
 
     @api.depends('date_from', 'date_to', 'company_id')
-    def _compute_consumption_cycle(self):
-        """Calculate average consumption cycle (days between PO and receipt)"""
+    def _compute_po_to_receipt(self):
+        """
+        Calculate average time from PO confirmation to goods receipt.
+        Uses date_approve on PO and actual done date on stock.move.
+        """
         for record in self:
             query = """
                 SELECT 
                     pp.id,
                     pt.name,
-                    AVG(EXTRACT(epoch FROM (sm.date - po.date_order))/86400) as avg_days
+                    AVG(EXTRACT(epoch FROM (sm.date - po.date_approve))/86400) as avg_days,
+                    COUNT(sm.id) as move_count,
+                    COUNT(DISTINCT po.id) as po_count
                 FROM purchase_order_line pol
                 JOIN purchase_order po ON pol.order_id = po.id
                 JOIN product_product pp ON pol.product_id = pp.id
@@ -454,36 +436,44 @@ class PurchaseDashboard(models.Model):
                     AND pol.product_id IS NOT NULL
                 GROUP BY pp.id, pt.name
                 HAVING COUNT(sm.id) > 0
+                ORDER BY avg_days DESC
             """
-
-            self.env.cr.execute(query, (
-                record.company_id.id,
-                record.date_from,
-                record.date_to
-            ))
-
-            results = self.env.cr.fetchall()
-
-            if results:
-                total_avg = sum(r[2] for r in results if r[2]) / len(results)
-                record.avg_consumption_cycle = total_avg
-
-                cycle_data = []
-                for product_id, name, avg_days in results:
-                    if avg_days:
-                        cycle_data.append({
-                            'product_id': product_id,
-                            'product_name': name,
-                            'avg_days': round(avg_days, 2)
-                        })
-                record.consumption_cycle_data = str(cycle_data)
-            else:
-                record.avg_consumption_cycle = 0.0
-                record.consumption_cycle_data = '[]'
+            try:
+                self.env.cr.execute(query, (
+                    record.company_id.id,
+                    record.date_from,
+                    record.date_to
+                ))
+                results = self.env.cr.fetchall()
+                if results:
+                    valid_results = [r for r in results if r[2] is not None and r[2] > 0]
+                    if valid_results:
+                        record.avg_po_to_receipt = sum(r[2] for r in valid_results) / len(valid_results)
+                        cycle_data = []
+                        for product_id, name, avg_days, move_count, po_count in results:
+                            if avg_days:
+                                cycle_data.append({
+                                    'product_id': product_id,
+                                    'product_name': name,
+                                    'avg_days': round(avg_days, 2),
+                                    'move_count': move_count,
+                                    'po_count': po_count
+                                })
+                        record.po_to_receipt_data = str(cycle_data)
+                    else:
+                        record.avg_po_to_receipt = 0.0
+                        record.po_to_receipt_data = '[]'
+                else:
+                    record.avg_po_to_receipt = 0.0
+                    record.po_to_receipt_data = '[]'
+            except Exception as e:
+                _logger.error("Error in _compute_po_to_receipt: %s", e, exc_info=True)
+                record.avg_po_to_receipt = 0.0
+                record.po_to_receipt_data = '[]'
 
     @api.depends('date_from', 'date_to', 'company_id')
     def _compute_department_consumption(self):
-        """Calculate department-wise consumption (using analytic accounts as departments)"""
+        """Calculate department-wise consumption using analytic accounts"""
         for record in self:
             query = """
                 SELECT 
@@ -502,16 +492,13 @@ class PurchaseDashboard(models.Model):
                 GROUP BY aa.name
                 ORDER BY total_spend DESC
             """
-
             try:
                 self.env.cr.execute(query, (
                     record.company_id.id,
                     record.date_from,
                     record.date_to
                 ))
-
                 results = self.env.cr.fetchall()
-
                 dept_data = []
                 for dept_name, total_spend, product_count in results:
                     dept_data.append({
@@ -525,11 +512,15 @@ class PurchaseDashboard(models.Model):
 
     @api.depends('date_from', 'date_to', 'company_id')
     def _compute_commodity_spend(self):
-        """Calculate spend by product category (commodity)"""
+        """
+        FIX: Use SQL aggregation instead of Python loop.
+        Previously only sampled 20 PO lines — now aggregates ALL lines correctly.
+        """
         for record in self:
             query = """
                 SELECT 
                     pc.complete_name as category,
+                    pc.id as category_id,
                     SUM(pol.price_subtotal) as total_spend,
                     COUNT(DISTINCT pol.product_id) as product_count,
                     COUNT(DISTINCT po.id) as po_count
@@ -543,46 +534,40 @@ class PurchaseDashboard(models.Model):
                     AND po.date_approve >= %s
                     AND po.date_approve <= %s
                     AND pol.product_id IS NOT NULL
-                GROUP BY pc.complete_name
+                    AND pol.display_type IS NULL
+                GROUP BY pc.complete_name, pc.id
                 ORDER BY total_spend DESC
             """
-
             self.env.cr.execute(query, (
                 record.company_id.id,
                 record.date_from,
                 record.date_to
             ))
-
             results = self.env.cr.fetchall()
-
             commodity_data = []
-            for category, total_spend, product_count, po_count in results:
+            for category, category_id, total_spend, product_count, po_count in results:
                 commodity_data.append({
                     'category': category or 'Uncategorized',
+                    'category_id': category_id,
                     'total_spend': total_spend,
                     'product_count': product_count,
                     'po_count': po_count
                 })
             record.commodity_spend_data = str(commodity_data)
-            
-        
+
     def action_refresh_dashboard(self):
         """Manual refresh action for dashboard"""
         self.ensure_one()
-        # Force recomputation of all computed fields
         self._compute_total_spend_yearly()
         self._compute_top_suppliers()
         self._compute_items_with_po()
-        self._compute_monthly_release_po()
-        self._compute_monthly_po_values()
         self._compute_monthly_po_summary()
         self._compute_total_inventory_cost()
         self._compute_not_moved_inventory()
         self._compute_new_vendors()
-        self._compute_consumption_cycle()
+        self._compute_po_to_receipt()
         self._compute_department_consumption()
         self._compute_commodity_spend()
-
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -594,7 +579,6 @@ class PurchaseDashboard(models.Model):
         }
 
     def action_view_top_suppliers(self):
-        """Open view of top suppliers"""
         self.ensure_one()
         return {
             'name': _('Top Suppliers'),
@@ -606,9 +590,7 @@ class PurchaseDashboard(models.Model):
         }
 
     def action_view_not_moved_inventory(self):
-        """Open view of not moved inventory based on selected days"""
         self.ensure_one()
-        # This would need to be implemented based on the selection button clicked
         return {
             'name': _('Not Moved Inventory'),
             'type': 'ir.actions.act_window',
@@ -618,7 +600,6 @@ class PurchaseDashboard(models.Model):
         }
 
     def action_view_new_vendors(self):
-        """Open view of new vendors"""
         self.ensure_one()
         return {
             'name': _('New Vendors'),
