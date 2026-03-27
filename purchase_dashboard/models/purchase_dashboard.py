@@ -34,7 +34,7 @@ class PurchaseDashboard(models.Model):
     )
     top_supplier_data = fields.Text(string='Top Supplier Data', compute='_compute_top_suppliers')
 
-    # FIX: Items with PO - count distinct products in PO lines
+    # Items with PO
     items_with_po_count = fields.Integer(
         string='Items with Purchase Orders',
         compute='_compute_items_with_po'
@@ -112,7 +112,6 @@ class PurchaseDashboard(models.Model):
 
     @api.depends('date_from', 'date_to', 'company_id')
     def _compute_total_spend_yearly(self):
-        """Calculate total spend for confirmed POs in date range"""
         for record in self:
             po_domain = [
                 ('state', 'in', ['purchase', 'done']),
@@ -125,7 +124,6 @@ class PurchaseDashboard(models.Model):
 
     @api.depends('date_from', 'date_to', 'company_id')
     def _compute_top_suppliers(self):
-        """Get top 10 suppliers by spend"""
         for record in self:
             query = """
                 SELECT 
@@ -163,11 +161,6 @@ class PurchaseDashboard(models.Model):
 
     @api.depends('date_from', 'date_to', 'company_id')
     def _compute_items_with_po(self):
-        """
-        FIX: Count unique products that have confirmed PO lines in date range.
-        Previously this was counting ALL active products — now correctly counts
-        only products appearing in purchase orders within the selected date range.
-        """
         for record in self:
             query = """
                 SELECT COUNT(DISTINCT pol.product_id)
@@ -190,15 +183,6 @@ class PurchaseDashboard(models.Model):
 
     @api.depends('date_from', 'date_to', 'company_id')
     def _compute_monthly_po_summary(self):
-        """
-        FIX: Monthly PO count + value.
-        Now includes 'to approve' and 'sent' states in released/planned counts.
-        States:
-          - draft → RFQ (planned)
-          - sent  → RFQ Sent (planned)
-          - to approve → waiting approval (counted as released for ops visibility)
-          - purchase, done → confirmed PO (released/actual)
-        """
         for record in self:
             query = """
                 SELECT 
@@ -234,14 +218,11 @@ class PurchaseDashboard(models.Model):
                     }
 
                 if state in ('draft', 'sent'):
-                    # RFQ and RFQ Sent = planned
                     monthly_dict[month]['planned_count'] += count
                     monthly_dict[month]['planned_value'] += value
                 elif state == 'to approve':
-                    # Waiting approval — show separately
                     monthly_dict[month]['to_approve_count'] += count
                     monthly_dict[month]['to_approve_value'] += value
-                    # Also count in released for chart (manager approval pending but ops confirmed)
                     monthly_dict[month]['released_count'] += count
                     monthly_dict[month]['actual_value'] += value
                 elif state in ('purchase', 'done'):
@@ -268,11 +249,6 @@ class PurchaseDashboard(models.Model):
 
     @api.depends('date_from', 'date_to', 'company_id')
     def _compute_total_inventory_cost(self):
-        """
-        FIX: Use stock.quant value field directly.
-        Odoo maintains the 'value' field on stock.quant using actual cost (AVCO/FIFO/Standard).
-        Do NOT use standard_price * quantity as it may differ from actual valuation.
-        """
         for record in self:
             query = """
                 SELECT 
@@ -302,13 +278,6 @@ class PurchaseDashboard(models.Model):
 
     @api.depends('company_id')
     def _compute_not_moved_inventory(self):
-        """
-        FIX: Corrected bucket logic.
-        - notMoved30 = products not consumed for 30+ days (INCLUDES 45+ and 60+)
-        - notMoved45 = products not consumed for 45+ days (INCLUDES 60+)
-        - notMoved60 = products not consumed for 60+ days
-        Previously buckets were mutually exclusive which gave misleading totals.
-        """
         for record in self:
             today = fields.Date.today()
 
@@ -343,10 +312,9 @@ class PurchaseDashboard(models.Model):
             self.env.cr.execute(query, (record.company_id.id, record.company_id.id))
             results = self.env.cr.fetchall()
 
-            # FIX: Cumulative buckets (30+ includes 45+ and 60+)
-            count_30 = 0  # 30+ days (all slow moving)
-            count_45 = 0  # 45+ days
-            count_60 = 0  # 60+ days
+            count_30 = 0
+            count_45 = 0
+            count_60 = 0
             inventory_data = []
 
             for product_id, code, name, last_move, qty, value in results:
@@ -396,9 +364,6 @@ class PurchaseDashboard(models.Model):
 
     @api.depends('date_from', 'date_to', 'company_id')
     def _compute_new_vendors(self):
-        """
-        FIX: Added company filter. Uses date_from/date_to range, not hardcoded month.
-        """
         for record in self:
             new_vendors = self.env['res.partner'].search([
                 ('supplier_rank', '>', 0),
@@ -411,10 +376,6 @@ class PurchaseDashboard(models.Model):
 
     @api.depends('date_from', 'date_to', 'company_id')
     def _compute_po_to_receipt(self):
-        """
-        Calculate average time from PO confirmation to goods receipt.
-        Uses date_approve on PO and actual done date on stock.move.
-        """
         for record in self:
             query = """
                 SELECT 
@@ -473,7 +434,6 @@ class PurchaseDashboard(models.Model):
 
     @api.depends('date_from', 'date_to', 'company_id')
     def _compute_department_consumption(self):
-        """Calculate department-wise consumption using analytic accounts"""
         for record in self:
             query = """
                 SELECT 
@@ -512,10 +472,6 @@ class PurchaseDashboard(models.Model):
 
     @api.depends('date_from', 'date_to', 'company_id')
     def _compute_commodity_spend(self):
-        """
-        FIX: Use SQL aggregation instead of Python loop.
-        Previously only sampled 20 PO lines — now aggregates ALL lines correctly.
-        """
         for record in self:
             query = """
                 SELECT 
@@ -556,7 +512,6 @@ class PurchaseDashboard(models.Model):
             record.commodity_spend_data = str(commodity_data)
 
     def action_refresh_dashboard(self):
-        """Manual refresh action for dashboard"""
         self.ensure_one()
         self._compute_total_spend_yearly()
         self._compute_top_suppliers()

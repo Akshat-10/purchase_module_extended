@@ -35,7 +35,7 @@ export class PurchaseDashboard extends Component {
             departmentConsumption: [],
             departmentInventory: [],
             commoditySpend: [],
-            monthlyInventoryTrend: [],
+            monthlyProductionInventory: [],
             dateFrom: this.getYearStart(),
             dateTo: this.getCurrentDate(),
             companyId: null,
@@ -53,6 +53,7 @@ export class PurchaseDashboard extends Component {
             topPurchasers: null,
             departmentInventory: null,
             inventoryTrend: null,
+            productionInventory: null,
         };
 
         onWillStart(async () => {
@@ -90,8 +91,8 @@ export class PurchaseDashboard extends Component {
                 this.loadDepartmentInventory(),
                 this.loadTopPurchasers(),
                 this.loadPOToReceiptFromBackend(),
-                this.loadMonthlyInventoryTrend(),
                 this.loadConsumptionCycleMetric(),
+                this.loadProductionInventoryMetrics(),
             ]);
         } catch (error) {
             console.error("Error loading dashboard data:", error);
@@ -100,12 +101,8 @@ export class PurchaseDashboard extends Component {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // FIX 1: Total Inventory Cost — use stock.quant value field
-    // ─────────────────────────────────────────────────────────────
     async loadFinancialMetrics() {
         try {
-            // Total PO spend
             const result = await this.orm.searchRead(
                 "purchase.order",
                 [
@@ -117,7 +114,6 @@ export class PurchaseDashboard extends Component {
             );
             this.state.totalSpendYearly = result.reduce((sum, po) => sum + (po.amount_total || 0), 0);
 
-            // Total Inventory Cost = sum of stock.quant value filtered by create_date
             const quants = await this.orm.searchRead(
                 "stock.quant",
                 [
@@ -166,7 +162,6 @@ export class PurchaseDashboard extends Component {
                 poCount: item.partner_id_count,
             }));
 
-            // FIX: New vendors within selected date range (not hardcoded current month)
             const newVendors = await this.orm.searchCount(
                 "res.partner",
                 [
@@ -182,12 +177,8 @@ export class PurchaseDashboard extends Component {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // FIX 2: Items with PO — count products in PO lines, not all products
-    // ─────────────────────────────────────────────────────────────
     async loadPOMetrics() {
         try {
-            // FIX: Count distinct products that appear in confirmed PO lines
             const productCount = await this.orm.searchCount(
                 "purchase.order.line",
                 [
@@ -241,12 +232,10 @@ export class PurchaseDashboard extends Component {
                     };
                 }
 
-                // FIX: draft + sent = planned (RFQ)
                 if (state === 'draft' || state === 'sent') {
                     monthlyDict[month].plannedCount += count;
                     monthlyDict[month].plannedValue += value;
                 }
-                // FIX: to approve + purchase + done = released
                 else if (state === 'to approve' || state === 'purchase' || state === 'done') {
                     monthlyDict[month].releasedCount += count;
                     monthlyDict[month].actualValue += value;
@@ -271,9 +260,6 @@ export class PurchaseDashboard extends Component {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // FIX 3: Monthly PO Status — include 'to approve' in Approved
-    // ─────────────────────────────────────────────────────────────
     async loadMonthlyPOStatus() {
         try {
             const allPOs = await this.orm.readGroup(
@@ -287,7 +273,6 @@ export class PurchaseDashboard extends Component {
                 { lazy: false }
             );
 
-            // Try to load indents (purchase.request) — gracefully handle if module not installed
             let indents = [];
             try {
                 indents = await this.orm.readGroup(
@@ -317,11 +302,9 @@ export class PurchaseDashboard extends Component {
                     monthlyStatus[month] = { month, approved: 0, pending: 0, indent: 0 };
                 }
 
-                // FIX: 'to approve' and 'purchase' and 'done' all count as Approved
                 if (state === 'purchase' || state === 'done' || state === 'to approve') {
                     monthlyStatus[month].approved += count;
                 } else if (state === 'draft' || state === 'sent') {
-                    // draft and sent = pending/RFQ
                     monthlyStatus[month].pending += count;
                 }
             });
@@ -345,34 +328,24 @@ export class PurchaseDashboard extends Component {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // GRN Metrics
-    // - Date filter: create_date (Created on) — matches Receipts list view
-    // - States: all EXCEPT cancel (draft, waiting, confirmed, assigned, done)
-    // - Count: 1 picking = 1 GRN
-    // - Monthly chart: grouped by create_date month, broken down by state
-    // ─────────────────────────────────────────────────────────────
     async loadGRNMetrics() {
         try {
-            // All GRN states except cancel
             const GRN_STATES = ['draft', 'waiting', 'confirmed', 'assigned', 'done'];
 
-            // ── Step 1: Fetch all receipts (excluding cancelled) within date range ──
             const grnPickings = await this.orm.searchRead(
                 "stock.picking",
                 [
                     ['picking_type_code', '=', 'incoming'],
                     ['state', 'in', GRN_STATES],
-                    ['create_date', '>=', this.state.dateFrom],   // Created on — matches list view
+                    ['create_date', '>=', this.state.dateFrom],
                     ['create_date', '<=', this.state.dateTo],
                 ],
-                ['id', 'name', 'create_date', 'date_done', 'state', 'move_ids_without_package'],
+                ['id', 'name', 'create_date', 'date_done', 'state', 'move_ids_without_package','total_cost'],
                 { limit: 10000 }
             );
 
             console.log(`GRN Pickings found: ${grnPickings.length}`);
 
-            // ── Step 2: Total GRN count (all non-cancelled) ──
             this.state.grnClearedCount = grnPickings.length;
 
             if (grnPickings.length === 0) {
@@ -380,12 +353,9 @@ export class PurchaseDashboard extends Component {
                 return;
             }
 
-            // ── Step 3: Group by month (using create_date) + state ──
-            // monthlyDict[monthKey][state] = count
             const monthlyDict = {};
 
             grnPickings.forEach(picking => {
-                // Use create_date for grouping (matches "Created on: Month" filter in list view)
                 const d = new Date(picking.create_date);
                 const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
                 const state = picking.state;
@@ -407,7 +377,6 @@ export class PurchaseDashboard extends Component {
                 monthlyDict[monthKey][state] = (monthlyDict[monthKey][state] || 0) + 1;
             });
 
-            // ── Step 4: Calculate cost for ALL pickings (all states except cancel) ──
             const allMoveIds = [];
             grnPickings.forEach(picking => {
                 if (picking.move_ids_without_package) {
@@ -418,12 +387,11 @@ export class PurchaseDashboard extends Component {
             if (allMoveIds.length > 0) {
                 const moves = await this.orm.searchRead(
                     "stock.move",
-                    [['id', 'in', allMoveIds]],   // No state filter — all moves
+                    [['id', 'in', allMoveIds]],
                     ['picking_id', 'product_id', 'product_uom_qty', 'purchase_line_id'],
                     { limit: 50000 }
                 );
 
-                // Get PO line prices
                 const poLineIds = moves.filter(m => m.purchase_line_id).map(m => m.purchase_line_id[0]);
                 const poLinePriceMap = {};
                 if (poLineIds.length > 0) {
@@ -435,7 +403,6 @@ export class PurchaseDashboard extends Component {
                     poLines.forEach(line => { poLinePriceMap[line.id] = line.price_unit || 0; });
                 }
 
-                // Fallback: standard price
                 const productIds = [...new Set(moves.map(m => m.product_id[0]))];
                 const products = await this.orm.searchRead(
                     "product.product",
@@ -445,7 +412,6 @@ export class PurchaseDashboard extends Component {
                 const productPriceMap = {};
                 products.forEach(p => { productPriceMap[p.id] = p.standard_price || 0; });
 
-                // Map picking → cost
                 const pickingCostMap = {};
                 moves.forEach(move => {
                     const pickingId = move.picking_id[0];
@@ -459,17 +425,15 @@ export class PurchaseDashboard extends Component {
                     pickingCostMap[pickingId] += qty * price;
                 });
 
-                // Apply cost to monthly dict for ALL pickings
                 grnPickings.forEach(picking => {
                     const d = new Date(picking.create_date);
                     const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
                     if (monthlyDict[monthKey]) {
-                        monthlyDict[monthKey].totalCost += (pickingCostMap[picking.id] || 0);
+                        monthlyDict[monthKey].totalCost += (picking.total_cost || 0);
                     }
                 });
             }
 
-            // ── Step 5: Build final monthly GRN array ──
             this.state.monthlyGRN = Object.values(monthlyDict)
                 .sort((a, b) => new Date(a.month + '-01') - new Date(b.month + '-01'))
                 .map(item => {
@@ -485,7 +449,7 @@ export class PurchaseDashboard extends Component {
                         confirmed: item.confirmed,   // Waiting (products)
                         ready: item.assigned,        // Ready
                         done: item.done,             // Done
-                        totalCost: item.totalCost,   // Total cost of all pickings (all states)
+                        totalCost: item.totalCost,   // Total cost 
                     };
                 });
 
@@ -498,12 +462,8 @@ export class PurchaseDashboard extends Component {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // FIX 5: Commodity Spend — read ALL lines via readGroup, not slice(20)
-    // ─────────────────────────────────────────────────────────────
     async loadCommodityData() {
         try {
-            // Step 1: Fetch all confirmed PO lines with product + price in date range
             const poLines = await this.orm.searchRead(
                 "purchase.order.line",
                 [
@@ -523,7 +483,6 @@ export class PurchaseDashboard extends Component {
                 return;
             }
 
-            // Step 2: Get unique product ids and fetch their category
             const productIds = [...new Set(poLines.map(l => l.product_id[0]))];
             const products = await this.orm.searchRead(
                 "product.product",
@@ -532,7 +491,6 @@ export class PurchaseDashboard extends Component {
                 { limit: 50000 }
             );
 
-            // Map product → category
             const productCategMap = {};
             products.forEach(p => {
                 if (p.categ_id) {
@@ -540,7 +498,6 @@ export class PurchaseDashboard extends Component {
                 }
             });
 
-            // Step 3: Aggregate spend by category
             const categoryMap = {};
             poLines.forEach(line => {
                 const productId = line.product_id[0];
@@ -577,12 +534,8 @@ export class PurchaseDashboard extends Component {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // FIX 6: PO to Receipt — compute directly, don't rely on stale backend record
-    // ─────────────────────────────────────────────────────────────
     async loadPOToReceiptFromBackend() {
         try {
-            // FIX: Compute avg PO-to-receipt directly in JS, not from stale backend field
             const pos = await this.orm.searchRead(
                 "purchase.order",
                 [
@@ -648,9 +601,6 @@ export class PurchaseDashboard extends Component {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // FIX 7: Inventory Not Moved — cumulative buckets (30+ includes 45+ and 60+)
-    // ─────────────────────────────────────────────────────────────
     async loadInventoryMetrics() {
         try {
             const today = new Date();
@@ -675,7 +625,6 @@ export class PurchaseDashboard extends Component {
 
             const productIds = [...new Set(quants.map(q => q.product_id[0]))];
 
-            // Internal consumption moves only (from internal to non-internal)
             const recentMoves = await this.orm.searchRead(
                 "stock.move",
                 [
@@ -712,10 +661,9 @@ export class PurchaseDashboard extends Component {
                 productQuantMap[prodId].totalValue += (q.value || 0);
             });
 
-            // FIX: Cumulative buckets — 30+ includes ALL slow moving items
-            let count30 = 0;  // 30+ days (widest net)
-            let count45 = 0;  // 45+ days
-            let count60 = 0;  // 60+ days (most critical)
+            let count30 = 0;
+            let count45 = 0;
+            let count60 = 0;
             const notMovedDetails = [];
 
             Object.values(productQuantMap).forEach(product => {
@@ -723,12 +671,11 @@ export class PurchaseDashboard extends Component {
                 let daysNotMoved;
 
                 if (!lastConsumeDate) {
-                    daysNotMoved = 9999;  // never consumed
+                    daysNotMoved = 9999;
                 } else {
                     daysNotMoved = Math.floor((today - lastConsumeDate) / (1000 * 60 * 60 * 24));
                 }
 
-                // FIX: Each threshold is cumulative (30+ means >= 30 days)
                 if (daysNotMoved >= 30) {
                     count30++;
                     if (daysNotMoved >= 45) {
@@ -762,12 +709,8 @@ export class PurchaseDashboard extends Component {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // FIX 8: Consumption Chart — add date filter and company filter
-    // ─────────────────────────────────────────────────────────────
     async loadConsumptionMetrics() {
         try {
-            // FIX: Add date filter — was loading ALL historical moves before
             const moves = await this.orm.searchRead(
                 "stock.move",
                 [
@@ -872,12 +815,8 @@ export class PurchaseDashboard extends Component {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // FIX 9: Consumption Cycle — add date filter
-    // ─────────────────────────────────────────────────────────────
     async loadConsumptionCycleMetric() {
         try {
-            // FIX: Add dateFrom/dateTo filter — was loading ALL historical data before
             const moves = await this.orm.searchRead(
                 "stock.move",
                 [
@@ -1137,74 +1076,119 @@ export class PurchaseDashboard extends Component {
             this.state.departmentInventory = [];
         }
     }
-
-    // ─────────────────────────────────────────────────────────────
-    // FIX 10: Monthly Inventory Trend — use current stock.quant snapshots
-    // ─────────────────────────────────────────────────────────────
-    async loadMonthlyInventoryTrend() {
-        try {
-            // stock.quant has create_date — group by month, sum value
-            // Filter: internal locations, quantity > 0, within date range
-            const quants = await this.orm.searchRead(
-                "stock.quant",
-                [
-                    ['quantity', '>', 0],
-                    ['location_id.usage', '=', 'internal'],
-                    ['create_date', '>=', this.state.dateFrom],
-                    ['create_date', '<=', this.state.dateTo],
-                ],
-                ['create_date', 'value'],
-                { limit: 100000 }
-            );
-
-            // Group by month → sum value
-            const monthlyMap = {};
-            quants.forEach(q => {
-                const d = new Date(q.create_date);
-                const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                if (!monthlyMap[monthKey]) monthlyMap[monthKey] = 0;
-                monthlyMap[monthKey] += (q.value || 0);
-            });
-
-            this.state.monthlyInventoryTrend = Object.keys(monthlyMap)
-                .sort()
-                .map(monthKey => {
-                    const [year, month] = monthKey.split('-');
-                    const monthName = new Date(parseInt(year), parseInt(month) - 1)
-                        .toLocaleString('en-US', { month: 'long', year: 'numeric' });
-                    return {
-                        month: monthName,
-                        monthKey: monthKey,
-                        totalValue: monthlyMap[monthKey],
-                    };
-                });
-
-            console.log('Monthly Inventory Trend:', this.state.monthlyInventoryTrend);
-
-        } catch (error) {
-            console.error("Error loading inventory trend:", error);
-            this.state.monthlyInventoryTrend = [];
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    // FIX 11: Monthly Values Chart — normalize target keys to match month format
-    // ─────────────────────────────────────────────────────────────
     async loadMonthlyTargets() {
         try {
             const targets = await this.orm.call('purchase.target', 'get_all_targets', []);
             this.state.monthlyTargets = targets || {};
             console.log('Targets loaded:', this.state.monthlyTargets);
-            // targets keys are in "YYYY-MM" format e.g. {"2026-01": 500000, "2026-02": 600000}
         } catch (error) {
             console.warn('Could not load targets (purchase.target model may not exist):', error.message);
             this.state.monthlyTargets = {};
         }
     }
 
-    // Helper: normalize month string to match target key format
-    // Odoo readGroup returns "January 2026", targets stored as "2026-01"
-    // Helper for XML template — get target value for a month (handles format conversion)
+    async loadProductionInventoryMetrics() {
+        try {
+            console.log("=== MONTHLY INVENTORY TREND ===");
+
+            const grnData = await this.orm.readGroup(
+                "stock.picking",
+                [
+                    ['picking_type_code', '=', 'incoming'],
+                    ['state', '=', 'done'],
+                    ['date_done', '>=', this.state.dateFrom],
+                    ['date_done', '<=', this.state.dateTo],
+                ],
+                ['__count'],
+                ['date_done:month'],
+                { lazy: false }
+            );
+
+            const consumptionData = await this.orm.readGroup(
+                "stock.move",
+                [
+                    ['state', '=', 'done'],
+                    ['location_id.usage', '=', 'internal'],
+                    ['location_dest_id.usage', '!=', 'internal'],
+                    ['date', '>=', this.state.dateFrom],
+                    ['date', '<=', this.state.dateTo],
+                ],
+                ['__count', 'product_uom_qty:sum'],
+                ['date:month'],
+                { lazy: false }
+            );
+
+            const inventoryValue = await this.orm.readGroup(
+                "stock.quant",
+                [
+                    ['location_id.usage', '=', 'internal'],
+                    ['quantity', '>', 0],
+                    ['in_date', '>=', this.state.dateFrom],
+                    ['in_date', '<=', this.state.dateTo],
+                ],
+                ['value:sum', 'quantity:sum'],
+                ['in_date:month'],
+                { lazy: false }
+            );
+
+            const monthlyDict = {};
+
+            grnData.forEach(item => {
+                const month = item['date_done:month'];
+                if (!month) return;
+                const key = this.normalizeMonthKey(month);
+                if (!monthlyDict[key]) monthlyDict[key] = { grnCount: 0, productCount: 0, inventoryValue: 0 };
+                monthlyDict[key].grnCount += item.__count || 0;
+            });
+
+            consumptionData.forEach(item => {
+                const month = item['date:month'];
+                if (!month) return;
+                const key = this.normalizeMonthKey(month);
+                if (!monthlyDict[key]) monthlyDict[key] = { grnCount: 0, productCount: 0, inventoryValue: 0 };
+                monthlyDict[key].productCount += item.__count || 0;
+            });
+
+            inventoryValue.forEach(item => {
+                const month = item['in_date:month'];
+                if (!month) return;
+                const key = this.normalizeMonthKey(month);
+                if (!monthlyDict[key]) monthlyDict[key] = { grnCount: 0, productCount: 0, inventoryValue: 0 };
+                monthlyDict[key].inventoryValue += item.value || 0;
+            });
+
+            if (Object.keys(monthlyDict).length === 0) {
+                this.state.monthlyProductionInventory = [];
+                this.createProductionInventoryChart();
+                return;
+            }
+
+            this.state.monthlyProductionInventory = Object.keys(monthlyDict)
+                .sort()
+                .map(key => {
+                    const [year, monthNum] = key.split('-');
+                    const label = new Date(parseInt(year), parseInt(monthNum) - 1)
+                        .toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                    return {
+                        month: label,
+                        monthKey: key,
+                        grnCount: monthlyDict[key].grnCount,
+                        productCount: monthlyDict[key].productCount,
+                        inventoryValue: monthlyDict[key].inventoryValue,
+                    };
+                });
+
+            console.log("Monthly inventory trend:", this.state.monthlyProductionInventory);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            this.createProductionInventoryChart();
+
+        } catch (error) {
+            console.error("Error loading monthly inventory metrics:", error);
+            this.state.monthlyProductionInventory = [];
+            this.createProductionInventoryChart();
+        }
+    }
+
     getTargetForMonth(month) {
         const key = this.normalizeMonthKey(month);
         return (this.state.monthlyTargets && this.state.monthlyTargets[key]) || '';
@@ -1212,17 +1196,12 @@ export class PurchaseDashboard extends Component {
 
     normalizeMonthKey(month) {
         try {
-            // Already YYYY-MM → return as-is
             if (/^\d{4}-\d{2}$/.test(month)) return month;
-
-            // Odoo readGroup returns "January 2026", "February 2026" etc.
-            // Parse manually to avoid browser Date inconsistencies
             const monthNames = {
                 'january': '01', 'february': '02', 'march': '03', 'april': '04',
                 'may': '05', 'june': '06', 'july': '07', 'august': '08',
                 'september': '09', 'october': '10', 'november': '11', 'december': '12'
             };
-            // Match "January 2026" or "Jan 2026"
             const match = month.match(/^([A-Za-z]+)\s+(\d{4})$/);
             if (match) {
                 const monthNum = monthNames[match[1].toLowerCase()];
@@ -1245,9 +1224,8 @@ export class PurchaseDashboard extends Component {
         const rawMonth = ev.target.dataset.month;
         const value = ev.target.value;
 
-        // Always normalize to YYYY-MM before saving — DB stores "2026-01" format
         const month = this.normalizeMonthKey(rawMonth);
-        console.log('Target input — raw:', rawMonth, '→ normalized:', month, 'value:', value);
+        console.log('Saving target — raw:', rawMonth, '→ normalized:', month, 'value:', value);
 
         try {
             const result = await this.orm.call(
@@ -1255,8 +1233,8 @@ export class PurchaseDashboard extends Component {
             );
             if (result.success) {
                 if (!this.state.monthlyTargets) this.state.monthlyTargets = {};
-                // Store with normalized key so chart lookup works
                 this.state.monthlyTargets[month] = parseFloat(value || 0);
+                console.log('Updated monthlyTargets:', JSON.stringify(this.state.monthlyTargets));
                 this.refreshMonthlyValuesChart();
             } else {
                 alert('❌ ' + result.message);
@@ -1279,32 +1257,26 @@ export class PurchaseDashboard extends Component {
         const months = this.state.monthlyPOSummary.map(m => m.month);
         const poReleasedValues = this.state.monthlyPOSummary.map(m => m.actualValue);
 
-        // Normalize month keys and lookup targets
-        // monthlyTargets keys: "2026-01" format (from purchase.target DB)
-        // m.month: "January 2026" format (from Odoo readGroup)
         const targetValues = this.state.monthlyPOSummary.map(m => {
             const normalizedKey = this.normalizeMonthKey(m.month);
-            const target = this.state.monthlyTargets[normalizedKey] || 0;
-            console.log(`Month: "${m.month}" → key: "${normalizedKey}" → target: ${target}`);
+            const target = Number(
+                this.state.monthlyTargets[normalizedKey] ||
+                this.state.monthlyTargets[m.month] ||
+                0
+            );
             return target;
         });
 
-        console.log('All targets:', JSON.stringify(this.state.monthlyTargets));
-        console.log('Target values for chart:', targetValues);
-        console.log('Released values:', poReleasedValues);
-
-        // Green = amount within target, Red = amount OVER target (stacked on top)
-        const overTargetValues = poReleasedValues.map((released, idx) => {
+        const greenValues = poReleasedValues.map((released, idx) => {
             const target = targetValues[idx];
-            const over = (target > 0 && released > target) ? released - target : 0;
-            console.log(`  [${months[idx]}] released=${released}, target=${target}, over=${over}`);
-            return over;
+            if (!target || target <= 0) return released;
+            return Math.min(released, target);
         });
 
-        const poReleasedGreenValues = poReleasedValues.map((released, idx) => {
+        const redValues = poReleasedValues.map((released, idx) => {
             const target = targetValues[idx];
-            if (target <= 0) return released;          // No target set → all green
-            return released > target ? target : released; // Cap at target → rest is red
+            if (!target || target <= 0) return 0;
+            return Math.max(0, released - target);
         });
 
         this.charts.monthlyValues = new Chart(ctx, {
@@ -1314,21 +1286,21 @@ export class PurchaseDashboard extends Component {
                 datasets: [
                     {
                         label: 'PO Released (Within Target)',
-                        data: poReleasedGreenValues,
+                        data: greenValues,
                         backgroundColor: 'rgba(16, 185, 129, 0.8)',
                         borderColor: 'rgba(16, 185, 129, 1)',
                         borderWidth: 1,
-                        borderRadius: 6,
+                        borderRadius: 0,
                         yAxisID: 'y',
                         stack: 'poReleased',
                     },
                     {
                         label: 'PO Released (Over Target)',
-                        data: overTargetValues,
+                        data: redValues,
                         backgroundColor: 'rgba(239, 68, 68, 0.8)',
                         borderColor: 'rgba(239, 68, 68, 1)',
                         borderWidth: 1,
-                        borderRadius: [6, 6, 0, 0],
+                        borderRadius: 6,
                         yAxisID: 'y',
                         stack: 'poReleased',
                     },
@@ -1340,26 +1312,54 @@ export class PurchaseDashboard extends Component {
                         borderWidth: 1,
                         borderRadius: 6,
                         yAxisID: 'y',
+                        stack: 'rfq',
                     }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
                 plugins: {
-                    legend: { position: 'top' },
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            filter: (item) => {
+                                if (item.text === 'PO Released (Over Target)') {
+                                    return redValues.some(v => v > 0);
+                                }
+                                return true;
+                            }
+                        }
+                    },
                     tooltip: {
                         callbacks: {
                             label: (context) => {
-                                const label = context.dataset.label || '';
-                                return label + ': ' + this.formatCurrency(context.parsed.y);
+                                const value = context.parsed.y;
+                                if (value === 0) return null;
+                                return `${context.dataset.label}: ${this.formatCurrency(value)}`;
                             },
-                            afterLabel: (context) => {
-                                if (context.dataset.label === 'PO Released (Within Target)') {
-                                    const target = targetValues[context.dataIndex] || 0;
-                                    return target > 0 ? `Target: ${this.formatCurrency(target)}` : '';
+                            afterBody: (contexts) => {
+                                const idx = contexts[0]?.dataIndex;
+                                if (idx === undefined) return [];
+                                const target = targetValues[idx];
+                                const released = poReleasedValues[idx];
+                                if (!target || target <= 0) return [];
+                                const lines = ['─────────────────'];
+                                lines.push(`Target:   ${this.formatCurrency(target)}`);
+                                lines.push(`Released: ${this.formatCurrency(released)}`);
+                                const diff = released - target;
+                                if (diff > 0) {
+                                    lines.push(`Over by:  ${this.formatCurrency(diff)}`);
+                                } else if (diff < 0) {
+                                    lines.push(`Under by: ${this.formatCurrency(Math.abs(diff))}`);
+                                } else {
+                                    lines.push(`Exactly on target ✓`);
                                 }
-                                return '';
+                                return lines;
                             }
                         }
                     }
@@ -1367,9 +1367,17 @@ export class PurchaseDashboard extends Component {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: { callback: (v) => this.formatCurrency(v) }
+                        ticks: {
+                            callback: (v) => this.formatCurrency(v)
+                        },
+                        grid: {
+                            color: 'rgba(0,0,0,0.06)'
+                        }
                     },
-                    x: { ticks: { color: '#000000' } }
+                    x: {
+                        ticks: { color: '#000000' },
+                        grid: { display: false }
+                    }
                 }
             }
         });
@@ -1480,8 +1488,6 @@ export class PurchaseDashboard extends Component {
         }
     }
 
-    // ─── Navigation actions ───────────────────────────────────────
-
     async onViewTopSuppliers() {
         if (!this.state.topSuppliers.length) return;
         this.action.doAction({
@@ -1526,12 +1532,11 @@ export class PurchaseDashboard extends Component {
     }
 
     async onViewGRNCleared() {
-        // date filter: create_date, all states except cancel
         this.action.doAction({
             type: 'ir.actions.act_window', res_model: 'stock.picking', name: 'GRN Receipts',
             views: [[false, 'list'], [false, 'form']],
             domain: [
-                ['picking_type_code', '=', 'incoming'],
+                [("picking_type_code", "=", "incoming")],
                 ['state', 'in', ['draft', 'waiting', 'confirmed', 'assigned', 'done']],
                 ['create_date', '>=', this.state.dateFrom],
                 ['create_date', '<=', this.state.dateTo],
@@ -1658,31 +1663,63 @@ export class PurchaseDashboard extends Component {
         });
     }
 
-    async onOpenTargetsMenu() {
-        this.action.doAction({
-            type: 'ir.actions.act_window', res_model: 'purchase.target', name: 'Purchase Targets',
-            views: [[false, 'tree'], [false, 'form']], context: { create: true },
-        });
+    async onViewMonthlyInventoryChart() {
+        try {
+            this.action.doAction({
+                type: 'ir.actions.act_window',
+                name: 'Monthly Inventory Trend',
+                res_model: 'stock.quant',
+                views: [
+                    [false, 'list'],
+                    [false, 'pivot'],
+                    [false, 'graph']
+                ],
+                domain: [
+                    ['location_id.usage', '=', 'internal'],
+                    ['quantity', '>', 0],
+                    ['in_date', '>=', this.state.dateFrom],
+                    ['in_date', '<=', this.state.dateTo],
+                ],
+                context: {
+                    create: false,
+                    group_by: ['in_date:month'],
+                },
+            });
+        } catch (error) {
+            console.error("Error opening Monthly Inventory Trend view:", error);
+        }
     }
 
     async onOpenTargetForm(ev) {
         try {
             const button = ev.currentTarget || ev.target;
-            let month = button.getAttribute('data-month') || button.closest('button')?.getAttribute('data-month');
-            if (!month) { alert('Could not determine month.'); return; }
+            let rawMonth = button.getAttribute('data-month') || button.closest('button')?.getAttribute('data-month');
+            if (!rawMonth) { alert('Could not determine month.'); return; }
+
+            const month = this.normalizeMonthKey(rawMonth);
+            console.log('Opening target form — raw:', rawMonth, '→ normalized:', month);
 
             const existingTargets = await this.orm.search('purchase.target', [['month', '=', month]]);
             if (existingTargets?.length > 0) {
-                this.action.doAction({
-                    type: 'ir.actions.act_window', res_model: 'purchase.target',
-                    res_id: existingTargets[0], views: [[false, 'form']], target: 'current',
+                await this.action.doAction({
+                    type: 'ir.actions.act_window',
+                    res_model: 'purchase.target',
+                    res_id: existingTargets[0],
+                    views: [[false, 'form']],
+                    target: 'new',
                 });
             } else {
-                this.action.doAction({
-                    type: 'ir.actions.act_window', res_model: 'purchase.target',
-                    views: [[false, 'form']], context: { 'default_month': month, 'default_target_value': 0 }, target: 'current',
+                await this.action.doAction({
+                    type: 'ir.actions.act_window',
+                    res_model: 'purchase.target',
+                    views: [[false, 'form']],
+                    context: { 'default_month': month, 'default_target_value': 0 },
+                    target: 'new',
                 });
             }
+            await this.loadMonthlyTargets();
+            this.refreshMonthlyValuesChart();
+
         } catch (error) {
             console.error('Error opening target form:', error);
             alert('Failed to open target form:\n' + error.message);
@@ -1697,8 +1734,6 @@ export class PurchaseDashboard extends Component {
             context: { create: false, group_by: ['date_done:month'] },
         });
     }
-
-    // ─── Chart initialization ─────────────────────────────────────
 
     async initializeCharts() {
         try {
@@ -1723,7 +1758,7 @@ export class PurchaseDashboard extends Component {
             this.createCommodityChart();
             this.createConsumptionChart();
             this.createDepartmentInventoryChart();
-            this.createMonthlyInventoryTrendChart();
+            this.createProductionInventoryChart();
         } catch (error) {
             console.error("Error creating charts:", error);
         }
@@ -1756,6 +1791,79 @@ export class PurchaseDashboard extends Component {
         });
     }
 
+    createProductionInventoryChart() {
+        const canvas = document.getElementById('productionInventoryChart');
+        if (!canvas) return;
+
+        if (this.charts.productionInventory) {
+            try { this.charts.productionInventory.destroy(); } catch(e) {}
+            this.charts.productionInventory = null;
+        }
+
+        if (!this.state.monthlyProductionInventory || !this.state.monthlyProductionInventory.length) {
+            canvas.style.display = 'none';
+            const parent = canvas.parentElement;
+            const old = parent.querySelector('.no-data-msg');
+            if (old) old.remove();
+            const msg = document.createElement('div');
+            msg.className = 'no-data-msg';
+            msg.style.cssText = 'padding:40px;text-align:center;color:#999;font-size:14px;';
+            msg.innerHTML = '<i class="fa fa-bar-chart fa-2x" style="display:block;margin-bottom:10px;"></i>No inventory data found for selected date range';
+            parent.appendChild(msg);
+            return;
+        }
+
+        canvas.style.display = 'block';
+        const old = canvas.parentElement.querySelector('.no-data-msg');
+        if (old) old.remove();
+
+        const data = this.state.monthlyProductionInventory;
+
+        this.charts.productionInventory = new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: data.map(m => m.month),
+                datasets: [
+                    {
+                        label: 'Inventory Value',
+                        data: data.map(m => m.inventoryValue),
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        yAxisID: 'y',
+                        pointRadius: 4,
+                        pointBackgroundColor: 'rgba(16, 185, 129, 1)',
+                    }
+                ]
+            },
+
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: (c) => `Inventory Value: ${this.formatCurrency(c.parsed.y)}`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Inventory Value (₹)', color: '#000' },
+                        ticks: { callback: (v) => this.formatCurrency(v), color: '#000' }
+                    },
+                    x: {
+                        ticks: { color: '#000' },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
     createMonthlyPOStatusChart() {
         const canvas = document.getElementById('monthlyPOStatusChart');
         if (!canvas || !this.state.monthlyPOStatus.length) return;
@@ -1782,7 +1890,6 @@ export class PurchaseDashboard extends Component {
         const canvas = document.getElementById('monthlyGRNChart');
         if (!canvas || !this.state.monthlyGRN.length) return;
         if (this.charts.monthlyGRN) { try { this.charts.monthlyGRN.destroy(); } catch (e) {} }
-        // Simple bar: total GRN count per month (all states except cancel, date = create_date)
         this.charts.monthlyGRN = new Chart(canvas.getContext('2d'), {
             type: 'bar',
             data: {
@@ -1840,7 +1947,7 @@ export class PurchaseDashboard extends Component {
         if (this.charts.departmentInventory) { try { this.charts.departmentInventory.destroy(); } catch (e) {} }
         const colors = ['rgba(59,130,246,0.8)', 'rgba(16,185,129,0.8)', 'rgba(245,158,11,0.8)', 'rgba(239,68,68,0.8)', 'rgba(139,92,246,0.8)', 'rgba(236,72,153,0.8)', 'rgba(6,182,212,0.8)', 'rgba(251,146,60,0.8)', 'rgba(34,197,94,0.8)', 'rgba(168,85,247,0.8)'];
         this.charts.departmentInventory = new Chart(canvas.getContext('2d'), {
-            type: 'pie',
+            type: 'doughnut',
             data: { labels: this.state.departmentInventory.map(d => d.name), datasets: [{ data: this.state.departmentInventory.map(d => d.productCount), backgroundColor: colors, borderColor: '#fff', borderWidth: 2 }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
@@ -1899,49 +2006,6 @@ export class PurchaseDashboard extends Component {
                 indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => 'Spend: ' + this.formatCurrency(c.parsed.x) } } },
                 scales: { x: { beginAtZero: true, ticks: { callback: (v) => this.formatCurrency(v) } } }
-            }
-        });
-    }
-
-    createMonthlyInventoryTrendChart() {
-        const canvas = document.getElementById('inventoryTrendChart');
-        if (!canvas || !this.state.monthlyInventoryTrend.length) return;
-        if (this.charts.inventoryTrend) { try { this.charts.inventoryTrend.destroy(); } catch (e) {} }
-        this.charts.inventoryTrend = new Chart(canvas.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: this.state.monthlyInventoryTrend.map(m => m.month),
-                datasets: [{
-                    label: 'Inventory Cost',
-                    data: this.state.monthlyInventoryTrend.map(m => m.totalValue),
-                    backgroundColor: 'rgba(59, 130, 246, 0.8)',
-                    borderColor: 'rgba(59, 130, 246, 1)',
-                    borderWidth: 1,
-                    borderRadius: 6,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: (c) => 'Inventory Cost: ' + this.formatCurrency(c.parsed.y)
-                        }
-                    }
-                },
-                scales: {
-                    x: { ticks: { color: '#000' } },
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            color: '#000',
-                            callback: (v) => this.formatCurrency(v)
-                        },
-                        title: { display: true, text: 'Total Cost', color: '#000' }
-                    }
-                }
             }
         });
     }
