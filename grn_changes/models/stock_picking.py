@@ -20,6 +20,15 @@ class StockPicking(models.Model):
     )
     price_mismatch_reason = fields.Text(string='Price Mismatch Reason')
 
+    digital_signature = fields.Binary(string='Signature',
+                                 help="Digital signature file")
+    prepared_by = fields.Char(string='Prepared By',
+                          help="Name of the person who signed")
+    approved_by = fields.Char(string='Approved By',
+                           help="Designation of the person who signed")
+    authorised_by = fields.Char(string='Authorised By',
+                          help="Designation of the person who signed")
+
     @api.depends('move_ids_without_package.product_id')
     def _compute_supplier_invoice_value(self):
         """Automatically fetch product cost (standard_price) from product"""

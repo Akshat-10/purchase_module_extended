@@ -36,6 +36,17 @@
                        invisible="price_matches_po"
                        required="not price_matches_po"/>
             </xpath>
+
+            <xpath expr="//sheet/notebook" position="after">
+                <group string="Extra Details">
+                    <group>
+                        <field name="digital_signature"/>
+                        <field name="prepared_by"/>
+                        <field name="approved_by"/>
+                        <field name="authorised_by"/>
+                    </group>
+                </group>
+            </xpath>
         </field>
     </record>
 

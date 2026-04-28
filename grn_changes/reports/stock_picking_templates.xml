@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="inherit_stock_delivery_report_signature"
+              inherit_id="stock.report_delivery_document">
+
+        <xpath expr="//div[@class='page']" position="inside">
+
+            <div style="width:100%; margin-top:40px; text-align:right;">
+
+                <div t-if="o.digital_signature">
+                    <img t-att-src="'data:image/png;base64,%s' % o.digital_signature.decode('utf-8')"
+                         style="max-height:80px; max-width:200px;"/>
+                </div>
+
+                <div>
+                    <strong>Prepared By:</strong>
+                    <span t-field="o.prepared_by"/>
+                </div>
+
+                <div>
+                    <strong>Approved By:</strong>
+                    <span t-field="o.approved_by"/>
+                </div>
+
+                <div>
+                    <strong>Authorised By:</strong>
+                    <span t-field="o.authorised_by"/>
+                </div>
+
+            </div>
+
+        </xpath>
+
+    </template>
+
+    <template id="inherit_stock_report_picking_signature"
+          inherit_id="stock.report_picking">
+
+        <xpath expr="//div[contains(@class,'o_report_stockpicking_operations')]" position="inside">
+
+            <div style="width:100%; margin-top:40px; text-align:right;">
+
+                <div t-if="o.digital_signature">
+                    <img t-att-src="'data:image/png;base64,%s' % o.digital_signature.decode('utf-8')"
+                         style="max-height:80px; max-width:200px;"/>
+                </div>
+
+                <div>
+                    <strong>Prepared By:</strong>
+                    <span t-field="o.prepared_by"/>
+                </div>
+
+                <div>
+                    <strong>Approved By:</strong>
+                    <span t-field="o.approved_by"/>
+                </div>
+
+                <div>
+                    <strong>Authorised By:</strong>
+                    <span t-field="o.authorised_by"/>
+                </div>
+
+            </div>
+
+        </xpath>
+
+    </template>
+
+    <template id="inherit_return_slip_signature"
+              inherit_id="stock.report_return_slip">
+
+        <xpath expr="//div[@class='page']" position="inside">
+
+            <div style="width:100%; margin-top:40px; text-align:right;">
+
+                <div t-if="o.digital_signature">
+                    <img t-att-src="'data:image/png;base64,%s' % o.digital_signature.decode('utf-8')"
+                         style="max-height:80px; max-width:200px;"/>
+                </div>
+
+                <div>
+                    <strong>Prepared By:</strong>
+                    <span t-field="o.prepared_by"/>
+                </div>
+
+                <div>
+                    <strong>Approved By:</strong>
+                    <span t-field="o.approved_by"/>
+                </div>
+
+                <div>
+                    <strong>Authorised By:</strong>
+                    <span t-field="o.authorised_by"/>
+                </div>
+
+            </div>
+
+        </xpath>
+
+    </template>
+
+</odoo>

@@ -12,6 +12,7 @@
     'data': [
         'views/stock_picking_views.xml',
         'reports/delivery_slip_report_fix.xml',
+        'reports/stock_picking_templates.xml',
     ],
     'installable': True,
     'application': False,
