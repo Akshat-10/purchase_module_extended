@@ -4,6 +4,40 @@
     <template id="inherit_stock_delivery_report_signature"
               inherit_id="stock.report_delivery_document">
 
+        <xpath expr="//div[@name='div_vehicle_no']" position="after">
+
+            <div class="row mt16 mb16" style="width:100%;">
+                <div class="col-4">
+                    <strong>Requested Department:</strong><br/>
+                    <span t-field="o.requested_department_id"/>
+                </div>
+                <div class="col-4">
+                    <strong>Requested Division:</strong><br/>
+                    <span t-field="o.requested_division_id"/>
+                </div>
+                <div class="col-4">
+                    <strong>Requested Sub Division:</strong><br/>
+                    <span t-field="o.requested_sub_division_id"/>
+                </div>
+            </div>
+
+            <div class="row mt16 mb16" style="width:100%;">
+                <div class="col-4">
+                    <strong>Sub Division Manager:</strong><br/>
+                    <span t-field="o.sub_division_manager_id"/>
+                </div>
+                <div class="col-4">
+                    <strong>Indent Request Person:</strong><br/>
+                    <span t-field="o.indent_person_id"/>
+                </div>
+                <div class="col-4">
+                    <strong>Indent Person Ph Number:</strong><br/>
+                    <span t-field="o.indent_person_phone"/>
+                </div>
+            </div>
+
+        </xpath>
+
         <xpath expr="//div[@class='page']" position="inside">
 
             <div style="width:100%; margin-top:40px; text-align:right;">
@@ -12,22 +46,18 @@
                     <img t-att-src="'data:image/png;base64,%s' % o.digital_signature.decode('utf-8')"
                          style="max-height:80px; max-width:200px;"/>
                 </div>
-
                 <div>
                     <strong>Prepared By:</strong>
                     <span t-field="o.prepared_by"/>
                 </div>
-
                 <div>
                     <strong>Approved By:</strong>
                     <span t-field="o.approved_by"/>
                 </div>
-
                 <div>
                     <strong>Authorised By:</strong>
                     <span t-field="o.authorised_by"/>
                 </div>
-
             </div>
 
         </xpath>
@@ -37,6 +67,41 @@
     <template id="inherit_stock_report_picking_signature"
           inherit_id="stock.report_picking">
 
+        <xpath expr="//div[@name='div_sched_date']/.." position="after">
+            <div class="row mt-3 mb-3">
+
+                <div class="col-4">
+                    <strong>Requested Department</strong>
+                    <div t-field="o.requested_department_id"/>
+                </div>
+                <div class="col-4">
+                    <strong>Requested Division</strong>
+                    <div t-field="o.requested_division_id"/>
+                </div>
+                <div class="col-4">
+                    <strong>Requested Sub Division</strong>
+                    <div t-field="o.requested_sub_division_id"/>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+
+                <div class="col-4">
+                    <strong>Sub Division Manager</strong>
+                    <div t-field="o.sub_division_manager_id"/>
+                </div>
+                <div class="col-4">
+                    <strong>Indent Request Person</strong>
+                    <div t-field="o.indent_person_id"/>
+                </div>
+                <div class="col-4">
+                    <strong>Indent Person Ph Number</strong>
+                    <div t-field="o.indent_person_phone"/>
+                </div>
+            </div>
+
+        </xpath>
+
         <xpath expr="//div[contains(@class,'o_report_stockpicking_operations')]" position="inside">
 
             <div style="width:100%; margin-top:40px; text-align:right;">
@@ -45,22 +110,18 @@
                     <img t-att-src="'data:image/png;base64,%s' % o.digital_signature.decode('utf-8')"
                          style="max-height:80px; max-width:200px;"/>
                 </div>
-
                 <div>
                     <strong>Prepared By:</strong>
                     <span t-field="o.prepared_by"/>
                 </div>
-
                 <div>
                     <strong>Approved By:</strong>
                     <span t-field="o.approved_by"/>
                 </div>
-
                 <div>
                     <strong>Authorised By:</strong>
                     <span t-field="o.authorised_by"/>
                 </div>
-
             </div>
 
         </xpath>
@@ -70,6 +131,42 @@
     <template id="inherit_return_slip_signature"
               inherit_id="stock.report_return_slip">
 
+        <xpath expr="//div[@class='row mt8']" position="after">
+
+            <div class="row mt16 mb16">
+
+                <div class="col-4">
+                    <strong>Requested Department:</strong><br/>
+                    <span t-field="o.requested_department_id"/>
+                </div>
+                <div class="col-4">
+                    <strong>Requested Division:</strong><br/>
+                    <span t-field="o.requested_division_id"/>
+                </div>
+                <div class="col-4">
+                    <strong>Requested Sub Division:</strong><br/>
+                    <span t-field="o.requested_sub_division_id"/>
+                </div>
+            </div>
+
+            <div class="row mt16 mb16">
+
+                <div class="col-4">
+                    <strong>Sub Division Manager:</strong><br/>
+                    <span t-field="o.sub_division_manager_id"/>
+                </div>
+                <div class="col-4">
+                    <strong>Indent Request Person:</strong><br/>
+                    <span t-field="o.indent_person_id"/>
+                </div>
+                <div class="col-4">
+                    <strong>Indent Person Ph Number:</strong><br/>
+                    <span t-field="o.indent_person_phone"/>
+                </div>
+            </div>
+
+        </xpath>
+
         <xpath expr="//div[@class='page']" position="inside">
 
             <div style="width:100%; margin-top:40px; text-align:right;">
@@ -78,20 +175,112 @@
                     <img t-att-src="'data:image/png;base64,%s' % o.digital_signature.decode('utf-8')"
                          style="max-height:80px; max-width:200px;"/>
                 </div>
-
                 <div>
                     <strong>Prepared By:</strong>
                     <span t-field="o.prepared_by"/>
                 </div>
-
                 <div>
                     <strong>Approved By:</strong>
                     <span t-field="o.approved_by"/>
                 </div>
-
                 <div>
                     <strong>Authorised By:</strong>
                     <span t-field="o.authorised_by"/>
+                </div>
+            </div>
+
+        </xpath>
+
+    </template>
+
+    <template id="purchase_order_add_indent_fields"
+          inherit_id="purchase.report_purchaseorder_document">
+
+        <!-- Add after the entire information row -->
+        <xpath expr="//div[@id='informations']" position="after">
+
+            <div class="row mb-4">
+
+                <div class="col-4">
+                    <strong>Requested Department:</strong>
+                    <div t-field="o.requested_department_id"/>
+                </div>
+
+                <div class="col-4">
+                    <strong>Requested Division:</strong>
+                    <div t-field="o.requested_division_id"/>
+                </div>
+
+                <div class="col-4">
+                    <strong>Requested Sub Division:</strong>
+                    <div t-field="o.requested_sub_division_id"/>
+                </div>
+
+            </div>
+
+            <div class="row mb-4">
+
+                <div class="col-4">
+                    <strong>Sub Division Manager:</strong>
+                    <div t-field="o.sub_division_manager_id"/>
+                </div>
+
+                <div class="col-4">
+                    <strong>Indent Request Person:</strong>
+                    <div t-field="o.indent_person_id"/>
+                </div>
+
+                <div class="col-4">
+                    <strong>Indent Person Ph Number:</strong>
+                    <div t-field="o.indent_person_phone"/>
+                </div>
+
+            </div>
+
+        </xpath>
+
+    </template>
+
+    <template id="purchase_quotation_add_indent_fields"
+          inherit_id="purchase.report_purchasequotation_document">
+
+        <!-- Add below RFQ title -->
+        <xpath expr="//t[@t-set='layout_document_title']" position="after">
+
+            <div class="row mb-4 mt-3">
+
+                <div class="col-4">
+                    <strong>Requested Department:</strong>
+                    <div t-field="o.requested_department_id"/>
+                </div>
+
+                <div class="col-4">
+                    <strong>Requested Division:</strong>
+                    <div t-field="o.requested_division_id"/>
+                </div>
+
+                <div class="col-4">
+                    <strong>Requested Sub Division:</strong>
+                    <div t-field="o.requested_sub_division_id"/>
+                </div>
+
+            </div>
+
+            <div class="row mb-4">
+
+                <div class="col-4">
+                    <strong>Sub Division Manager:</strong>
+                    <div t-field="o.sub_division_manager_id"/>
+                </div>
+
+                <div class="col-4">
+                    <strong>Indent Request Person:</strong>
+                    <div t-field="o.indent_person_id"/>
+                </div>
+
+                <div class="col-4">
+                    <strong>Indent Person Ph Number:</strong>
+                    <div t-field="o.indent_person_phone"/>
                 </div>
 
             </div>
