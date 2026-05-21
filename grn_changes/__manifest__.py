@@ -11,6 +11,7 @@
     'depends': ['stock', 'purchase'],
     'data': [
         'views/stock_picking_views.xml',
+        'views/purchase_order_views.xml',
         'reports/delivery_slip_report_fix.xml',
         'reports/stock_picking_templates.xml',
     ],

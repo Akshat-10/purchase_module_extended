@@ -197,44 +197,71 @@
           inherit_id="purchase.report_purchaseorder_document">
 
         <!-- Add after the entire information row -->
-        <xpath expr="//div[@id='informations']" position="after">
+<!--        <xpath expr="//div[@id='informations']" position="after">-->
 
-            <div class="row mb-4">
+<!--            <div class="row mb-4">-->
 
-                <div class="col-4">
-                    <strong>Requested Department:</strong>
-                    <div t-field="o.requested_department_id"/>
+<!--                <div class="col-4">-->
+<!--                    <strong>Requested Department:</strong>-->
+<!--                    <div t-field="o.requested_department_id"/>-->
+<!--                </div>-->
+
+<!--                <div class="col-4">-->
+<!--                    <strong>Requested Division:</strong>-->
+<!--                    <div t-field="o.requested_division_id"/>-->
+<!--                </div>-->
+
+<!--                <div class="col-4">-->
+<!--                    <strong>Requested Sub Division:</strong>-->
+<!--                    <div t-field="o.requested_sub_division_id"/>-->
+<!--                </div>-->
+
+<!--            </div>-->
+
+<!--            <div class="row mb-4">-->
+
+<!--                <div class="col-4">-->
+<!--                    <strong>Sub Division Manager:</strong>-->
+<!--                    <div t-field="o.sub_division_manager_id"/>-->
+<!--                </div>-->
+
+<!--                <div class="col-4">-->
+<!--                    <strong>Indent Request Person:</strong>-->
+<!--                    <div t-field="o.indent_person_id"/>-->
+<!--                </div>-->
+
+<!--                <div class="col-4">-->
+<!--                    <strong>Indent Person Ph Number:</strong>-->
+<!--                    <div t-field="o.indent_person_phone"/>-->
+<!--                </div>-->
+
+<!--            </div>-->
+
+<!--        </xpath>-->
+
+        <xpath expr="//div[@class='page']" position="inside">
+
+            <div style="width:100%; margin-top:40px;">
+
+                <div t-if="o.digital_signature" style="text-align:right; margin-bottom:10px;">
+                    <img t-att-src="'data:image/png;base64,%s' % o.digital_signature.decode('utf-8')"
+                         style="max-height:80px; max-width:200px;"/>
                 </div>
 
-                <div class="col-4">
-                    <strong>Requested Division:</strong>
-                    <div t-field="o.requested_division_id"/>
+                <div class="row" style="border-top:1px solid #000; padding-top:10px;">
+                    <div class="col-4" style="text-align:center;">
+                        <strong>Prepared By:</strong><br/>
+                        <span t-field="o.prepared_by"/>
+                    </div>
+                    <div class="col-4" style="text-align:center;">
+                        <strong>Approved By:</strong><br/>
+                        <span t-field="o.approved_by"/>
+                    </div>
+                    <div class="col-4" style="text-align:center;">
+                        <strong>Authorised By:</strong><br/>
+                        <span t-field="o.authorised_by"/>
+                    </div>
                 </div>
-
-                <div class="col-4">
-                    <strong>Requested Sub Division:</strong>
-                    <div t-field="o.requested_sub_division_id"/>
-                </div>
-
-            </div>
-
-            <div class="row mb-4">
-
-                <div class="col-4">
-                    <strong>Sub Division Manager:</strong>
-                    <div t-field="o.sub_division_manager_id"/>
-                </div>
-
-                <div class="col-4">
-                    <strong>Indent Request Person:</strong>
-                    <div t-field="o.indent_person_id"/>
-                </div>
-
-                <div class="col-4">
-                    <strong>Indent Person Ph Number:</strong>
-                    <div t-field="o.indent_person_phone"/>
-                </div>
-
             </div>
 
         </xpath>
@@ -245,44 +272,71 @@
           inherit_id="purchase.report_purchasequotation_document">
 
         <!-- Add below RFQ title -->
-        <xpath expr="//t[@t-set='layout_document_title']" position="after">
+<!--        <xpath expr="//t[@t-set='layout_document_title']" position="after">-->
 
-            <div class="row mb-4 mt-3">
+<!--            <div class="row mb-4 mt-3">-->
 
-                <div class="col-4">
-                    <strong>Requested Department:</strong>
-                    <div t-field="o.requested_department_id"/>
+<!--                <div class="col-4">-->
+<!--                    <strong>Requested Department:</strong>-->
+<!--                    <div t-field="o.requested_department_id"/>-->
+<!--                </div>-->
+
+<!--                <div class="col-4">-->
+<!--                    <strong>Requested Division:</strong>-->
+<!--                    <div t-field="o.requested_division_id"/>-->
+<!--                </div>-->
+
+<!--                <div class="col-4">-->
+<!--                    <strong>Requested Sub Division:</strong>-->
+<!--                    <div t-field="o.requested_sub_division_id"/>-->
+<!--                </div>-->
+
+<!--            </div>-->
+
+<!--            <div class="row mb-4">-->
+
+<!--                <div class="col-4">-->
+<!--                    <strong>Sub Division Manager:</strong>-->
+<!--                    <div t-field="o.sub_division_manager_id"/>-->
+<!--                </div>-->
+
+<!--                <div class="col-4">-->
+<!--                    <strong>Indent Request Person:</strong>-->
+<!--                    <div t-field="o.indent_person_id"/>-->
+<!--                </div>-->
+
+<!--                <div class="col-4">-->
+<!--                    <strong>Indent Person Ph Number:</strong>-->
+<!--                    <div t-field="o.indent_person_phone"/>-->
+<!--                </div>-->
+
+<!--            </div>-->
+
+<!--        </xpath>-->
+
+        <xpath expr="//div[@class='page']" position="inside">
+
+            <div style="width:100%; margin-top:40px;">
+
+                <div t-if="o.digital_signature" style="text-align:right; margin-bottom:10px;">
+                    <img t-att-src="'data:image/png;base64,%s' % o.digital_signature.decode('utf-8')"
+                         style="max-height:80px; max-width:200px;"/>
                 </div>
 
-                <div class="col-4">
-                    <strong>Requested Division:</strong>
-                    <div t-field="o.requested_division_id"/>
+                <div class="row" style="border-top:1px solid #000; padding-top:10px;">
+                    <div class="col-4" style="text-align:center;">
+                        <strong>Prepared By:</strong><br/>
+                        <span t-field="o.prepared_by"/>
+                    </div>
+                    <div class="col-4" style="text-align:center;">
+                        <strong>Approved By:</strong><br/>
+                        <span t-field="o.approved_by"/>
+                    </div>
+                    <div class="col-4" style="text-align:center;">
+                        <strong>Authorised By:</strong><br/>
+                        <span t-field="o.authorised_by"/>
+                    </div>
                 </div>
-
-                <div class="col-4">
-                    <strong>Requested Sub Division:</strong>
-                    <div t-field="o.requested_sub_division_id"/>
-                </div>
-
-            </div>
-
-            <div class="row mb-4">
-
-                <div class="col-4">
-                    <strong>Sub Division Manager:</strong>
-                    <div t-field="o.sub_division_manager_id"/>
-                </div>
-
-                <div class="col-4">
-                    <strong>Indent Request Person:</strong>
-                    <div t-field="o.indent_person_id"/>
-                </div>
-
-                <div class="col-4">
-                    <strong>Indent Person Ph Number:</strong>
-                    <div t-field="o.indent_person_phone"/>
-                </div>
-
             </div>
 
         </xpath>
