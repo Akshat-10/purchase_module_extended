@@ -49,216 +49,129 @@
 
             <!-- Dashboard Content -->
             <div t-else="" class="dashboard_content">
-                <!-- ========== KPI CARDS SECTION ========== -->
                 <div class="container-fluid">
-                    <div class="row" style="display: flex; flex-wrap: wrap; margin: 0 -15px; margin-bottom: 20px;">
-                        <!-- Company A Header -->
-                        <div class="col-xl-6 col-lg-6 col-md-12" style="padding: 0 15px;">
-                            <div class="company_section company_a">
-                                <div class="company_header">
-                                    <t t-esc="state.companyA.name"/>
+                <!-- ========== KPI CARDS SECTION ========== -->
+                <!-- Each company is now ONE block (title + all 8 KPIs together).
+                     Desktop: comparison_container shows both blocks side by side.
+                     Mobile: blocks stack full-width, so Company A appears completely
+                     (title + all its numbers) before Company B starts. -->
+                <div class="comparison_container">
+                    <!-- Company A -->
+                    <div class="company_section company_a">
+                        <div class="company_header">
+                            <t t-esc="state.companyA.name"/>
+                        </div>
+                        <div class="kpi_grid">
+                            <div class="kpi_card_master bg-primary" t-on-click="() => this.onViewTotalPOs('companyA')">
+                                <div class="kpi_label_master">Total PO Value</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="formatCurrency(state.companyA.totalSpend)"/>
                                 </div>
                             </div>
-                        </div>
-                        <!-- Company B Header -->
-                        <div class="col-xl-6 col-lg-6 col-md-12" style="padding: 0 15px;">
-                            <div class="company_section company_b">
-                                <div class="company_header">
-                                    <t t-esc="state.companyB.name"/>
+                            <div class="kpi_card_master bg-info" t-on-click="() => this.onViewTotalInventory('companyA')">
+                                <div class="kpi_label_master">Inventory Cost</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="formatCurrency(state.companyA.inventoryCost)"/>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- KPI Cards Row 1: 2+2 (Total PO Value + Inventory Cost) -->
-                    <div class="row" style="display: flex; flex-wrap: wrap; margin: 0 -15px; margin-bottom: 5px;">
-                        <!-- Company A: 2 Cards -->
-                        <div class="col-xl-6 col-lg-6 col-md-12" style="padding: 0 15px;">
-                            <div class="row" style="display: flex; flex-wrap: wrap; margin: 0 -10px;">
-                                <div class="col-xl-6 col-lg-6 col-md-6 mb-3" style="padding: 0 10px;">
-                                    <div class="kpi_card_master bg-primary" style="cursor: pointer; height: 100%;" t-on-click="() => this.onViewTotalPOs('companyA')">
-                                        <div class="kpi_label_master">Total PO Value</div>
-                                        <div class="kpi_value_master">
-                                            <t t-esc="formatCurrency(state.companyA.totalSpend)"/>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-xl-6 col-lg-6 col-md-6 mb-3" style="padding: 0 10px;">
-                                    <div class="kpi_card_master bg-info" style="cursor: pointer; height: 100%;" t-on-click="() => this.onViewTotalInventory('companyA')">
-                                        <div class="kpi_label_master">Inventory Cost</div>
-                                        <div class="kpi_value_master">
-                                            <t t-esc="formatCurrency(state.companyA.inventoryCost)"/>
-                                        </div>
-                                    </div>
+                            <div class="kpi_card_master bg-danger" t-on-click="() => this.onViewItemsWithPO('companyA')">
+                                <div class="kpi_label_master">No. of Items</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="formatNumber(state.companyA.itemsCount)"/>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Company B: 2 Cards -->
-                        <div class="col-xl-6 col-lg-6 col-md-12" style="padding: 0 15px;">
-                            <div class="row" style="display: flex; flex-wrap: wrap; margin: 0 -10px;">
-                                <div class="col-xl-6 col-lg-6 col-md-6 mb-3" style="padding: 0 10px;">
-                                    <div class="kpi_card_master bg-primary" style="cursor: pointer; height: 100%;" t-on-click="() => this.onViewTotalPOs('companyB')">
-                                        <div class="kpi_label_master">Total PO Value</div>
-                                        <div class="kpi_value_master">
-                                            <t t-esc="formatCurrency(state.companyB.totalSpend)"/>
-                                        </div>
-                                    </div>
+                            <div class="kpi_card_master bg-success" t-on-click="() => this.onViewGRNCleared('companyA')">
+                                <div class="kpi_label_master">GRN Cleared</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="formatNumber(state.companyA.grnCount)"/>
                                 </div>
-                                <div class="col-xl-6 col-lg-6 col-md-6 mb-3" style="padding: 0 10px;">
-                                    <div class="kpi_card_master bg-info" style="cursor: pointer; height: 100%;" t-on-click="() => this.onViewTotalInventory('companyB')">
-                                        <div class="kpi_label_master">Inventory Cost</div>
-                                        <div class="kpi_value_master">
-                                            <t t-esc="formatCurrency(state.companyB.inventoryCost)"/>
-                                        </div>
-                                    </div>
+                            </div>
+                            <div class="kpi_card_master bg-warning" t-on-click="() => this.onViewAvgIndentToPO('companyA')">
+                                <div class="kpi_label_master">Avg. Indent to PO</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="state.companyA.avgIndentToPO"/> days
+                                </div>
+                            </div>
+                            <div class="kpi_card_master bg-info" t-on-click="() => this.onViewAvgPOToReceipt('companyA')">
+                                <div class="kpi_label_master">Avg. PO to Receipt</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="state.companyA.avgPOToReceipt"/> days
+                                </div>
+                            </div>
+                            <div class="kpi_card_master bg-danger" t-on-click="() => this.onViewNewVendors('companyA')">
+                                <div class="kpi_label_master">New Vendors (Monthly)</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="state.companyA.newVendorsCount"/>
+                                </div>
+                            </div>
+                            <div class="kpi_card_master bg-primary" t-on-click="() => this.onViewAvgConsumptionCycle('companyA')">
+                                <div class="kpi_label_master">Avg. Consumption Cycle</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="state.companyA.avgConsumptionCycle"/> days
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- KPI Cards Row 2: 2+2 (No. of Items + GRN Cleared) -->
-                    <div class="row" style="display: flex; flex-wrap: wrap; margin: 0 -15px; margin-bottom: 5px;">
-                        <!-- Company A: 2 Cards -->
-                        <div class="col-xl-6 col-lg-6 col-md-12" style="padding: 0 15px;">
-                            <div class="row" style="display: flex; flex-wrap: wrap; margin: 0 -10px;">
-                                <div class="col-xl-6 col-lg-6 col-md-6 mb-3" style="padding: 0 10px;">
-                                    <div class="kpi_card_master bg-danger" style="cursor: pointer; height: 100%;" t-on-click="() => this.onViewItemsWithPO('companyA')">
-                                        <div class="kpi_label_master">No. of Items</div>
-                                        <div class="kpi_value_master">
-                                            <t t-esc="formatNumber(state.companyA.itemsCount)"/>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-xl-6 col-lg-6 col-md-6 mb-3" style="padding: 0 10px;">
-                                    <div class="kpi_card_master bg-success" style="cursor: pointer; height: 100%;" t-on-click="() => this.onViewGRNCleared('companyA')">
-                                        <div class="kpi_label_master">GRN Cleared</div>
-                                        <div class="kpi_value_master">
-                                            <t t-esc="formatNumber(state.companyA.grnCount)"/>
-                                        </div>
-                                    </div>
+                    <!-- Company B -->
+                    <div class="company_section company_b">
+                        <div class="company_header">
+                            <t t-esc="state.companyB.name"/>
+                        </div>
+                        <div class="kpi_grid">
+                            <div class="kpi_card_master bg-primary" t-on-click="() => this.onViewTotalPOs('companyB')">
+                                <div class="kpi_label_master">Total PO Value</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="formatCurrency(state.companyB.totalSpend)"/>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Company B: 2 Cards -->
-                        <div class="col-xl-6 col-lg-6 col-md-12" style="padding: 0 15px;">
-                            <div class="row" style="display: flex; flex-wrap: wrap; margin: 0 -10px;">
-                                <div class="col-xl-6 col-lg-6 col-md-6 mb-3" style="padding: 0 10px;">
-                                    <div class="kpi_card_master bg-danger" style="cursor: pointer; height: 100%;" t-on-click="() => this.onViewItemsWithPO('companyB')">
-                                        <div class="kpi_label_master">No. of Items</div>
-                                        <div class="kpi_value_master">
-                                            <t t-esc="formatNumber(state.companyB.itemsCount)"/>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-xl-6 col-lg-6 col-md-6 mb-3" style="padding: 0 10px;">
-                                    <div class="kpi_card_master bg-success" style="cursor: pointer; height: 100%;" t-on-click="() => this.onViewGRNCleared('companyB')">
-                                        <div class="kpi_label_master">GRN Cleared</div>
-                                        <div class="kpi_value_master">
-                                            <t t-esc="formatNumber(state.companyB.grnCount)"/>
-                                        </div>
-                                    </div>
+                            <div class="kpi_card_master bg-info" t-on-click="() => this.onViewTotalInventory('companyB')">
+                                <div class="kpi_label_master">Inventory Cost</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="formatCurrency(state.companyB.inventoryCost)"/>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- KPI Cards Row 3: 2+2 (Avg. Indent to PO + Avg. PO to Receipt) -->
-                    <div class="row" style="display: flex; flex-wrap: wrap; margin: 0 -15px; margin-bottom: 5px;">
-                        <!-- Company A: 2 Cards -->
-                        <div class="col-xl-6 col-lg-6 col-md-12" style="padding: 0 15px;">
-                            <div class="row" style="display: flex; flex-wrap: wrap; margin: 0 -10px;">
-                                <div class="col-xl-6 col-lg-6 col-md-6 mb-3" style="padding: 0 10px;">
-                                    <div class="kpi_card_master bg-warning" style="cursor: pointer; height: 100%;" t-on-click="() => this.onViewAvgIndentToPO('companyA')">
-                                        <div class="kpi_label_master">Avg. Indent to PO</div>
-                                        <div class="kpi_value_master">
-                                            <t t-esc="state.companyA.avgIndentToPO"/> days
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-xl-6 col-lg-6 col-md-6 mb-3" style="padding: 0 10px;">
-                                    <div class="kpi_card_master bg-info" style="cursor: pointer; height: 100%;" t-on-click="() => this.onViewAvgPOToReceipt('companyA')">
-                                        <div class="kpi_label_master">Avg. PO to Receipt</div>
-                                        <div class="kpi_value_master">
-                                            <t t-esc="state.companyA.avgPOToReceipt"/> days
-                                        </div>
-                                    </div>
+                            <div class="kpi_card_master bg-danger" t-on-click="() => this.onViewItemsWithPO('companyB')">
+                                <div class="kpi_label_master">No. of Items</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="formatNumber(state.companyB.itemsCount)"/>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Company B: 2 Cards -->
-                        <div class="col-xl-6 col-lg-6 col-md-12" style="padding: 0 15px;">
-                            <div class="row" style="display: flex; flex-wrap: wrap; margin: 0 -10px;">
-                                <div class="col-xl-6 col-lg-6 col-md-6 mb-3" style="padding: 0 10px;">
-                                    <div class="kpi_card_master bg-warning" style="cursor: pointer; height: 100%;" t-on-click="() => this.onViewAvgIndentToPO('companyB')">
-                                        <div class="kpi_label_master">Avg. Indent to PO</div>
-                                        <div class="kpi_value_master">
-                                            <t t-esc="state.companyB.avgIndentToPO"/> days
-                                        </div>
-                                    </div>
+                            <div class="kpi_card_master bg-success" t-on-click="() => this.onViewGRNCleared('companyB')">
+                                <div class="kpi_label_master">GRN Cleared</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="formatNumber(state.companyB.grnCount)"/>
                                 </div>
-                                <div class="col-xl-6 col-lg-6 col-md-6 mb-3" style="padding: 0 10px;">
-                                    <div class="kpi_card_master bg-info" style="cursor: pointer; height: 100%;" t-on-click="() => this.onViewAvgPOToReceipt('companyB')">
-                                        <div class="kpi_label_master">Avg. PO to Receipt</div>
-                                        <div class="kpi_value_master">
-                                            <t t-esc="state.companyB.avgPOToReceipt"/> days
-                                        </div>
-                                    </div>
+                            </div>
+                            <div class="kpi_card_master bg-warning" t-on-click="() => this.onViewAvgIndentToPO('companyB')">
+                                <div class="kpi_label_master">Avg. Indent to PO</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="state.companyB.avgIndentToPO"/> days
+                                </div>
+                            </div>
+                            <div class="kpi_card_master bg-info" t-on-click="() => this.onViewAvgPOToReceipt('companyB')">
+                                <div class="kpi_label_master">Avg. PO to Receipt</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="state.companyB.avgPOToReceipt"/> days
+                                </div>
+                            </div>
+                            <div class="kpi_card_master bg-danger" t-on-click="() => this.onViewNewVendors('companyB')">
+                                <div class="kpi_label_master">New Vendors (Monthly)</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="state.companyB.newVendorsCount"/>
+                                </div>
+                            </div>
+                            <div class="kpi_card_master bg-primary" t-on-click="() => this.onViewAvgConsumptionCycle('companyB')">
+                                <div class="kpi_label_master">Avg. Consumption Cycle</div>
+                                <div class="kpi_value_master">
+                                    <t t-esc="state.companyB.avgConsumptionCycle"/> days
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- KPI Cards Row 4: 2+2 (New Vendors + Avg. Consumption Cycle) -->
-                    <div class="row" style="display: flex; flex-wrap: wrap; margin: 0 -15px; margin-bottom: 30px;">
-                        <!-- Company A: 2 Cards -->
-                        <div class="col-xl-6 col-lg-6 col-md-12" style="padding: 0 15px;">
-                            <div class="row" style="display: flex; flex-wrap: wrap; margin: 0 -10px;">
-                                <div class="col-xl-6 col-lg-6 col-md-6 mb-3" style="padding: 0 10px;">
-                                    <div class="kpi_card_master bg-danger" style="cursor: pointer; height: 100%;" t-on-click="() => this.onViewNewVendors('companyA')">
-                                        <div class="kpi_label_master">New Vendors (Monthly)</div>
-                                        <div class="kpi_value_master">
-                                            <t t-esc="state.companyA.newVendorsCount"/>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-xl-6 col-lg-6 col-md-6 mb-3" style="padding: 0 10px;">
-                                    <div class="kpi_card_master bg-primary" style="cursor: pointer; height: 100%;" t-on-click="() => this.onViewAvgConsumptionCycle('companyA')">
-                                        <div class="kpi_label_master">Avg. Consumption Cycle</div>
-                                        <div class="kpi_value_master">
-                                            <t t-esc="state.companyA.avgConsumptionCycle"/> days
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Company B: 2 Cards -->
-                        <div class="col-xl-6 col-lg-6 col-md-12" style="padding: 0 15px;">
-                            <div class="row" style="display: flex; flex-wrap: wrap; margin: 0 -10px;">
-                                <div class="col-xl-6 col-lg-6 col-md-6 mb-3" style="padding: 0 10px;">
-                                    <div class="kpi_card_master bg-danger" style="cursor: pointer; height: 100%;" t-on-click="() => this.onViewNewVendors('companyB')">
-                                        <div class="kpi_label_master">New Vendors (Monthly)</div>
-                                        <div class="kpi_value_master">
-                                            <t t-esc="state.companyB.newVendorsCount"/>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-xl-6 col-lg-6 col-md-6 mb-3" style="padding: 0 10px;">
-                                    <div class="kpi_card_master bg-primary" style="cursor: pointer; height: 100%;" t-on-click="() => this.onViewAvgConsumptionCycle('companyB')">
-                                        <div class="kpi_label_master">Avg. Consumption Cycle</div>
-                                        <div class="kpi_value_master">
-                                            <t t-esc="state.companyB.avgConsumptionCycle"/> days
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ========== CHARTS SECTION - PARALLEL LAYOUT ========== -->
+                <!-- ========== CHARTS SECTION - PARALLEL LAYOUT ========== -->
 
                     <!-- Chart Row 1: Monthly Procurement Status -->
                     <div class="row" style="display: flex; flex-wrap: wrap; margin: 0 -15px; margin-bottom: 30px;">
@@ -792,7 +705,7 @@
                                         <i class="fa fa-external-link"/> View All
                                     </button>
                                 </div>
-                                <div class="card-body">
+                                <div class="card-body top_suppliers_card_body">
                                     <div class="chart_container_master" style="height: 300px; position: relative;">
                                         <canvas id="suppliersChartA"></canvas>
                                     </div>
@@ -831,7 +744,7 @@
                                         <i class="fa fa-external-link"/> View All
                                     </button>
                                 </div>
-                                <div class="card-body">
+                                <div class="card-body top_suppliers_card_body">
                                     <div class="chart_container_master" style="height: 300px; position: relative;">
                                         <canvas id="suppliersChartB"></canvas>
                                     </div>

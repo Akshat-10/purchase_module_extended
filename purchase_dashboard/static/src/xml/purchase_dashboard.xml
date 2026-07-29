@@ -415,12 +415,6 @@
                                     <div class="o_chart_container" style="height: 300px;">
                                         <canvas id="departmentInventoryChart"></canvas>
                                     </div>
-                                    <div style="position: absolute; top: 39%; left: 38%; transform: translate(-50%, -50%); text-align: center; pointer-events: none;">
-                                        <div style="font-size: 0.75rem; color: #000; font-weight: 500; text-transform: uppercase;">Total Cost</div>
-                                        <div style="font-size: 1.25rem; font-weight: 500; color: #000;">
-                                            <t t-esc="formatCurrency(state.departmentInventory.reduce((sum, d) => sum + d.totalCost, 0))"/>
-                                        </div>
-                                    </div>
                                     <div class="table-responsive mt-4" style="max-height: 220px; overflow-y: auto;">
                                         <table class="table table-sm table-bordered">
                                             <thead style="position: sticky; top: 0; background: white; z-index: 1;">
@@ -458,12 +452,6 @@
                                 <div class="card-body">
                                     <div class="o_chart_container" style="height: 300px; position: relative;">
                                         <canvas id="commodityChart"></canvas>
-                                    </div>
-                                    <div style="position: absolute; top: 38%; left: 40%; transform: translate(-50%, -50%); text-align: center; pointer-events: none;">
-                                        <div style="font-size: 0.75rem; font-weight: 500;">Total Spend</div>
-                                        <div style="font-size: 1.3rem; font-weight: 600;">
-                                            <t t-esc="formatCurrency(state.commoditySpend.reduce((sum, c) => sum + c.totalSpend, 0))"/>
-                                        </div>
                                     </div>
                                     <div class="table-responsive mt-4" style="max-height: 220px; overflow-y: auto;">
                                         <table class="table table-sm table-bordered">

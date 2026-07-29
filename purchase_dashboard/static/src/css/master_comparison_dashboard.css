@@ -165,11 +165,15 @@
 .company_header {
     text-align: center;
     padding: 15px;
-    margin: -20px -20px -20px -20px;
+    margin: -20px -20px 0 -20px;
     border-radius: 5px 5px 0 0;
     font-size: 1.3rem;
     font-weight: 500;
     color: #000000;
+}
+
+.company_section .kpi_grid {
+    margin-top: 20px;
 }
 
 .company_section.company_a .company_header {
@@ -261,6 +265,49 @@
     height: 250px;
     position: relative;
     padding: 15px;
+    width: 100%;
+}
+
+/* Horizontal scroll wrapper - ONLY for the "Top Suppliers" card.
+   Scoped to .top_suppliers_card_body (added in the XML) so no other
+   chart gets a scrollbar. */
+.card.shadow .card-body.top_suppliers_card_body {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(68, 146, 189, 0.7) rgba(0, 0, 0, 0.08);
+}
+
+/* Visible, clearly-styled horizontal scrollbar (WebKit browsers) */
+.card.shadow .card-body.top_suppliers_card_body::-webkit-scrollbar {
+    height: 10px;
+}
+
+.card.shadow .card-body.top_suppliers_card_body::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.08);
+    border-radius: 10px;
+}
+
+.card.shadow .card-body.top_suppliers_card_body::-webkit-scrollbar-thumb {
+    background: rgba(68, 146, 189, 0.75);
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.card.shadow .card-body.top_suppliers_card_body::-webkit-scrollbar-thumb:hover {
+    background: rgba(68, 146, 189, 1);
+}
+
+/* Only the Top Suppliers chart needs a min-width to keep its bars/labels
+   readable; other charts stay full-width with no horizontal scroll. */
+.top_suppliers_card_body .chart_container_master {
+    min-width: 550px;
+}
+
+@media (max-width: 768px) {
+    .top_suppliers_card_body .chart_container_master {
+        min-width: 480px;
+    }
 }
 
 /* Data Table */

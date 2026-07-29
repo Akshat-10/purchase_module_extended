@@ -1925,19 +1925,49 @@ export class PurchaseDashboard extends Component {
         });
     }
 
+    // Draws a two-line label at the EXACT geometric center of a doughnut's
+    _doughnutCenterTextPlugin(id, getLine1, getLine2) {
+        return {
+            id,
+            afterDraw: (chart) => {
+                const meta = chart.getDatasetMeta(0);
+                const arc = meta && meta.data && meta.data[0];
+                if (!arc) return;
+                const { ctx } = chart;
+                const cx = arc.x;
+                const cy = arc.y;
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#000';
+                ctx.font = "600 11px 'Segoe UI', Arial, sans-serif";
+                ctx.fillText(getLine1(), cx, cy - 11);
+                ctx.font = "700 15px 'Segoe UI', Arial, sans-serif";
+                ctx.fillText(getLine2(), cx, cy + 10);
+                ctx.restore();
+            }
+        };
+    }
+
     createCommodityChart() {
         const canvas = document.getElementById('commodityChart');
         if (!canvas || !this.state.commoditySpend.length) return;
         if (this.charts.commodity) { try { this.charts.commodity.destroy(); } catch (e) {} }
         const top10 = this.state.commoditySpend.slice(0, 10);
         const colors = ['rgba(59,130,246,0.8)', 'rgba(16,185,129,0.8)', 'rgba(245,158,11,0.8)', 'rgba(239,68,68,0.8)', 'rgba(139,92,246,0.8)', 'rgba(236,72,153,0.8)', 'rgba(6,182,212,0.8)', 'rgba(251,146,60,0.8)', 'rgba(34,197,94,0.8)', 'rgba(168,85,247,0.8)'];
+        const totalSpend = top10.reduce((sum, c) => sum + c.totalSpend, 0);
         this.charts.commodity = new Chart(canvas.getContext('2d'), {
             type: 'doughnut',
             data: { labels: top10.map(c => c.category), datasets: [{ data: top10.map(c => c.totalSpend), backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { position: 'right' }, tooltip: { callbacks: { label: (c) => `${c.label}: ${this.formatCurrency(c.parsed)} (${((c.parsed / c.dataset.data.reduce((a, b) => a + b, 0)) * 100).toFixed(1)}%)` } } }
-            }
+            },
+            plugins: [this._doughnutCenterTextPlugin(
+                'commodityCenterText',
+                () => 'TOTAL SPEND',
+                () => this.formatCurrency(totalSpend)
+            )]
         });
     }
 
@@ -1946,13 +1976,19 @@ export class PurchaseDashboard extends Component {
         if (!canvas || !this.state.departmentInventory.length) return;
         if (this.charts.departmentInventory) { try { this.charts.departmentInventory.destroy(); } catch (e) {} }
         const colors = ['rgba(59,130,246,0.8)', 'rgba(16,185,129,0.8)', 'rgba(245,158,11,0.8)', 'rgba(239,68,68,0.8)', 'rgba(139,92,246,0.8)', 'rgba(236,72,153,0.8)', 'rgba(6,182,212,0.8)', 'rgba(251,146,60,0.8)', 'rgba(34,197,94,0.8)', 'rgba(168,85,247,0.8)'];
+        const totalCost = this.state.departmentInventory.reduce((sum, d) => sum + d.totalCost, 0);
         this.charts.departmentInventory = new Chart(canvas.getContext('2d'), {
             type: 'doughnut',
             data: { labels: this.state.departmentInventory.map(d => d.name), datasets: [{ data: this.state.departmentInventory.map(d => d.productCount), backgroundColor: colors, borderColor: '#fff', borderWidth: 2 }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { position: 'right' }, tooltip: { callbacks: { label: (c) => `${c.label}: ${c.parsed} products (${((c.parsed / c.dataset.data.reduce((a, b) => a + b, 0)) * 100).toFixed(1)}%)` } } }
-            }
+            },
+            plugins: [this._doughnutCenterTextPlugin(
+                'departmentCenterText',
+                () => 'TOTAL COST',
+                () => this.formatCurrency(totalCost)
+            )]
         });
     }
 
